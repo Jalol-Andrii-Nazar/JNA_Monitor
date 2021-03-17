@@ -7,11 +7,9 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-#CoinGecko API
 coingecko_requests = { git = "https://github.com/Jalol-Andrii-Nazar/coingecko_requests.git" }
-#For graphs
 hotplot = { git = "https://github.com/Jalol-Andrii-Nazar/hotplot.git" }
-#For the GUI
 iced = { version = "0.2", features = ["canvas"]}
-#For window icon (we only need png support)
 image = { version = "0.23.12", default-features = false, features = ["png"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
