@@ -1,3 +1,5 @@
+#![feature(total_cmp)]
+
 use chrono::NaiveDateTime;
 use iced::Application;
 
@@ -11,7 +13,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?
         .prices
         .into_iter()
-        .map(|(timestamp, price)| (NaiveDateTime::from_timestamp(timestamp as i64 / 1000, 0), price))
+        .map(|(timestamp, price)| (NaiveDateTime::from_timestamp(timestamp as i64 / 1000, 0).date(), price))
         .collect::<Vec<_>>();
     let settings = iced::Settings::with_flags(gui::GuiFlags {
         ids: cg_client.coins_list().await?.into_iter().map(|coin| coin.id).collect(),

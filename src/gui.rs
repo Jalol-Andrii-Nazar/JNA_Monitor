@@ -1,15 +1,19 @@
-use chrono::NaiveDateTime;
-use iced::{Application, Button, Color, Column, Length, PickList, Row, Text, button, pick_list};
+use std::collections::HashMap;
+
+use chrono::{NaiveDate, NaiveDateTime};
+use hotplot::chart::line::{self, data::{Message, PlotSettings}};
+use iced::{Application, Button, Canvas, Color, Column, Container, Element, Length, PickList, Row, Text, button, pick_list};
 
 pub struct GuiFlags {
     pub ids: Vec<String>,
     pub vs_currencies: Vec<String>,
-    pub btc_to_usd: Vec<(NaiveDateTime, f64)>
+    pub btc_to_usd: Vec<(NaiveDate, f64)>
 }
 
 pub struct Gui {
     ids: Vec<String>,
     vs_currencies: Vec<String>,
+    btc_to_usd: Vec<(NaiveDate, f64)>,
     show_menu: bool,
     toggle_menu_button: button::State,
     button1_state: button::State,
@@ -25,6 +29,7 @@ pub enum GuiMessage {
     Button1Clicked,
     Button2Clicked,
     Button3Clicked,
+    ChartMessage(line::data::Message)
 }
 
 impl Application for Gui {
@@ -36,6 +41,7 @@ impl Application for Gui {
         (Self {
             ids: flags.ids,
             vs_currencies: flags.vs_currencies,
+            btc_to_usd: flags.btc_to_usd,
             show_menu: true,
             pls: Default::default(),
             toggle_menu_button: Default::default(),
@@ -58,6 +64,7 @@ impl Application for Gui {
             GuiMessage::Button1Clicked => {}
             GuiMessage::Button2Clicked => {}
             GuiMessage::Button3Clicked => {}
+            GuiMessage::ChartMessage(msg) => {}
         }
         iced::Command::none()
     }
@@ -88,6 +95,41 @@ impl Application for Gui {
         top_element = top_element.push(global_menu);
         let picklist = PickList::new(&mut self.pls, &self.vs_currencies, None, Self::Message::SmthChosen);
         top_element = top_element.push(picklist);
+
+
+        let settings = line::data::Settings {
+            ..Default::default()
+        };
+        let min_x_value = self.btc_to_usd.iter().map(|(d, _)| *d).min().unwrap();
+        let max_x_value = self.btc_to_usd.iter().map(|(d, _)| *d).max().unwrap();
+        let min_y_value = self.btc_to_usd.iter().map(|(_, p)| *p).min_by(|f1, f2| f1.total_cmp(f2)).unwrap();
+        let max_y_value = self.btc_to_usd.iter().map(|(_, p)| *p).max_by(|f1, f2| f1.total_cmp(f2)).unwrap();
+        let plot_settings = PlotSettings {
+            ..Default::default()
+        };
+        let mut data = HashMap::new();
+        data.insert(plot_settings, self.btc_to_usd.clone());
+        let chart = line::Chart::new(
+            settings,
+            min_x_value,
+            max_x_value,
+            min_y_value,
+            max_y_value,
+            data,
+        Vec::new(),
+        Vec::new()
+);
+
+        let canvas = Canvas::new(chart).width(Length::Fill).height(Length::Fill);
+        let container: Container<_> = Container::new(canvas)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .center_x()
+            .center_y();
+            let container_elem: Element<_> = container.into();
+
+        top_element = top_element.push(container_elem.map(Self::Message::ChartMessage));
+
         let mut elem: iced::Element<'_, Self::Message> = top_element.into();
         elem = elem.explain(Color::from_rgb8(0, 0, 0));
         elem
