@@ -1,8 +1,10 @@
+use chrono::NaiveDateTime;
 use iced::{Application, Button, Color, Column, Length, PickList, Row, Text, button, pick_list};
 
 pub struct GuiFlags {
     pub ids: Vec<String>,
-    pub vs_currencies: Vec<String>
+    pub vs_currencies: Vec<String>,
+    pub btc_to_usd: Vec<(NaiveDateTime, f64)>
 }
 
 pub struct Gui {
