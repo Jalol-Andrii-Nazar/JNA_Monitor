@@ -12,4 +12,4 @@ hotplot = { git = "https://github.com/Jalol-Andrii-Nazar/hotplot.git" }
 iced = { version = "0.2", features = ["canvas"]}
 image = { version = "0.23.12", default-features = false, features = ["png"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-
+chrono = "0.4"
