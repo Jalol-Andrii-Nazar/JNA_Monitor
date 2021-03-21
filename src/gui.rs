@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use chrono::{NaiveDate, NaiveDateTime};
 use hotplot::chart::line::{self, data::{Message, PlotSettings}};
-use iced::{Application, Button, Canvas, Color, Column, Container, Element, Length, PickList, Row, Text, button, pick_list};
+use iced::{Application, Button, Canvas, Clipboard, Color, Column, Container, Element, Length, PickList, Row, Text, button, pick_list};
 
 pub struct GuiFlags {
     pub ids: Vec<String>,
@@ -55,7 +55,7 @@ impl Application for Gui {
         "JNA".to_string()
     }
 
-    fn update(&mut self, message: Self::Message) -> iced::Command<Self::Message> {
+    fn update(&mut self, message: Self::Message, clipboard: &mut Clipboard) -> iced::Command<Self::Message> {
         match message {
             GuiMessage::SmthChosen(_) => {}
             GuiMessage::ShowMenuToggled => {
@@ -116,9 +116,9 @@ impl Application for Gui {
             min_y_value,
             max_y_value,
             data,
-        Vec::new(),
-        Vec::new()
-);
+            Vec::new(),
+            Vec::new()
+        );
 
         let canvas = Canvas::new(chart).width(Length::Fill).height(Length::Fill);
         let container: Container<_> = Container::new(canvas)

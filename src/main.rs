@@ -3,7 +3,11 @@
 use chrono::NaiveDateTime;
 use iced::Application;
 
+mod loading_gui;
 mod gui;
+
+pub const NAME: &'static str = "JNA";
+pub const VERSION: &'static str = "alpha-0.1";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -26,6 +30,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ..Default::default()
     };
 
-    gui::Gui::run(settings)?;
+    loading_gui::Gui::run(Default::default())?;
     Ok(())
 }
