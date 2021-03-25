@@ -1,12 +1,10 @@
-use std::time::Duration;
-
 use chrono::{NaiveDate, NaiveDateTime};
 use iced::{Application, Clipboard, Column, Command, Text, executor::Default};
 
-enum LoadingState {
+enum GuiState {
     Initilizing,
     Errored,
-    Successful(crate::gui::Gui)
+    Initialized(crate::gui::Gui)
 }
 
 #[derive(Debug)]
@@ -20,7 +18,7 @@ pub enum GuiMessage {
 
 pub struct Gui {
     messages: Vec<String>,
-    state: LoadingState,
+    state: GuiState,
     ids: Option<Vec<String>>,
     vs_currencies: Option<Vec<String>>,
     btc_to_usd: Option<Vec<(NaiveDate, f64)>>
@@ -34,10 +32,10 @@ impl Application for Gui {
     type Flags = ();
 
     fn new(flags: Self::Flags) -> (Self, Command<Self::Message>) {
-        let messages = vec![format!("Loading '{}' v. {}. Please wait...", crate::NAME, crate::VERSION)];
+        let messages = vec![format!("Loading '{}' v. {}. Please wait...", crate::NAME, crate::VERSION), format!("Loading ids...")];
         (Self {
             messages,
-            state: LoadingState::Initilizing,
+            state: GuiState::Initilizing,
             ids: None,
             vs_currencies: None,
             btc_to_usd: None
@@ -45,7 +43,11 @@ impl Application for Gui {
     }
 
     fn title(&self) -> String {
-        format!("Loading...")
+        if let GuiState::Initialized(ref gui) = self.state {
+            gui.title()
+        } else {
+            format!("Loading...")
+        }
     }
 
     fn update(&mut self, message: Self::Message, clipboard: &mut Clipboard) -> Command<Self::Message> {
@@ -53,11 +55,13 @@ impl Application for Gui {
             GuiMessage::IdsLoaded(ids) => {
                 self.ids = Some(ids);
                 self.messages.push(format!("Ids loaded successfully..."));
+                self.messages.push(format!("Loading VsCurrencies..."));
                 Command::perform(load_vs_currencies(), unwrap_result)
             }
             GuiMessage::VsCurrenciesLoaded(vs_currencies) => {
                 self.vs_currencies = Some(vs_currencies);
                 self.messages.push(format!("VsCurrencies loaded successfully..."));
+                self.messages.push(format!("Loading BtcToUsd..."));
                 Command::perform(load_btc_to_usd(), unwrap_result)
             }
             GuiMessage::BtcToUsdLoaded(btc_to_usd) => {
@@ -69,16 +73,16 @@ impl Application for Gui {
                     vs_currencies: self.vs_currencies.take().unwrap(),
                     btc_to_usd: self.btc_to_usd.take().unwrap()
                 });
-                self.state = LoadingState::Successful(gui);
+                self.state = GuiState::Initialized(gui);
                 gui_message.map(Self::Message::GuiMessage)
             }
             GuiMessage::Error(error) => {
-                self.state = LoadingState::Errored;
+                self.state = GuiState::Errored;
                 self.messages.push(format!("An error happened! {}", error));
                 Command::none()
             }
             GuiMessage::GuiMessage(msg) => {
-                if let LoadingState::Successful(ref mut gui) = self.state {
+                if let GuiState::Initialized(ref mut gui) = self.state {
                     gui.update(msg, clipboard).map(Self::Message::GuiMessage)
                 } else {
                     panic!("Should not happen")
@@ -88,7 +92,7 @@ impl Application for Gui {
     }
 
     fn view(&mut self) -> iced::Element<'_, Self::Message> {
-        if let LoadingState::Successful(ref mut gui) = self.state {
+        if let GuiState::Initialized(ref mut gui) = self.state {
             gui.view().map(GuiMessage::GuiMessage)
         } else {
             let mut column = Column::new();
@@ -110,13 +114,11 @@ fn unwrap_result(result: Result<GuiMessage, Box<dyn std::error::Error>>) -> GuiM
 async fn load_ids() -> Result<GuiMessage, Box<dyn std::error::Error>> {
     let coins = coingecko_requests::client::Client::new().coins_list().await?;
     let ids = coins.into_iter().map(|coin| coin.id).collect::<Vec<_>>();
-    tokio::time::sleep(Duration::from_secs(1)).await;
     Ok(GuiMessage::IdsLoaded(ids))
 }
 
 async fn load_vs_currencies() -> Result<GuiMessage, Box<dyn std::error::Error>> {
     let vs_currencies = coingecko_requests::client::Client::new().simple_supported_vs_currencies().await?;
-    tokio::time::sleep(Duration::from_secs(1)).await;
     Ok(GuiMessage::VsCurrenciesLoaded(vs_currencies))
 }
 
@@ -127,6 +129,5 @@ async fn load_btc_to_usd() -> Result<GuiMessage, Box<dyn std::error::Error>> {
         .into_iter()
         .map(|(timestamp, price)| (NaiveDateTime::from_timestamp(timestamp as i64 / 1000, 0).date(), price))
         .collect::<Vec<_>>();
-    tokio::time::sleep(Duration::from_secs(1)).await;
     Ok(GuiMessage::BtcToUsdLoaded(btc_to_usd))
 }

@@ -1,35 +1,32 @@
 #![feature(total_cmp)]
 
-use chrono::NaiveDateTime;
-use iced::Application;
+use std::io::Cursor;
+
+use iced::{Application, Settings, window::{self, Icon}};
+use image::ImageFormat;
 
 mod loading_gui;
 mod gui;
+
+const ICON: &[u8] = include_bytes!("../icon.png");
 
 pub const NAME: &'static str = "JNA";
 pub const VERSION: &'static str = "alpha-0.1";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("Hello, world!");
-    let cg_client = coingecko_requests::client::Client::new();
-    let btc_to_usd = cg_client.coins_id_market_chart_range("bitcoin", "usd", 1392577232, 1422577232)
-        .await?
-        .prices
-        .into_iter()
-        .map(|(timestamp, price)| (NaiveDateTime::from_timestamp(timestamp as i64 / 1000, 0).date(), price))
-        .collect::<Vec<_>>();
-    let mut settings = iced::Settings::with_flags(gui::GuiFlags {
-        ids: cg_client.coins_list().await?.into_iter().map(|coin| coin.id).collect(),
-        vs_currencies: cg_client.simple_supported_vs_currencies().await?,
-        btc_to_usd
-    });
+    let mut settings: Settings<()> = Default::default();
+    let mut wsettings = window::Settings::default();
 
-    settings.window = iced::window::Settings {
-        resizable: false,
-        ..Default::default()
-    };
+    let rgba = image::io::Reader::with_format(Cursor::new(ICON), ImageFormat::Png)
+        .decode()
+        .unwrap()
+        .to_rgba8();
+    let icon_width = rgba.width();
+    let icon_height = rgba.height();
+    wsettings.icon = Some(Icon::from_rgba(rgba.into_raw(), icon_width, icon_height).unwrap());
+    settings.window = wsettings;
 
-    loading_gui::Gui::run(Default::default())?;
+    loading_gui::Gui::run(settings)?;
     Ok(())
 }
