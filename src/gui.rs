@@ -1,4 +1,3 @@
-use chrono::NaiveDate;
 use iced::{Align, Button, Clipboard, Color, Column, Command, Element, Length, Row, Text, button};
 
 use crate::*;
@@ -8,11 +7,10 @@ const ENABLE_EXPLAIN: bool = true;
 pub struct GuiFlags {
     pub ids: Vec<String>,
     pub vs_currencies: Vec<String>,
-    pub btc_to_usd: Vec<(NaiveDate, f64)>,
 }
 
 #[derive(Debug, Clone, Copy)]
-enum Tab {
+pub enum Tab {
     Main,
     Triggers,
     Settings,
@@ -20,9 +18,6 @@ enum Tab {
 }
 
 pub struct Gui {
-    ids: Vec<String>,
-    vs_currencies: Vec<String>,
-    btc_to_usd: Vec<(NaiveDate, f64)>,
     active_tab: Tab,
     main_button_state: button::State,
     triggers_button_state: button::State,
@@ -44,16 +39,12 @@ pub enum GuiMessage {
 }
 
 impl Gui {
-    pub fn new(flags: GuiFlags) -> (Self, iced::Command<GuiMessage>) {
+    pub fn new(flags: GuiFlags) -> (Self, Command<GuiMessage>) {
         let (main_tab_state, main_tab_init_message) = main_tab_gui::Gui::new(main_tab_gui::GuiFlags {
-            ids: flags.ids.clone(),
-            vs_currencies: flags.vs_currencies.clone(),
-            btc_to_usd: flags.btc_to_usd.clone()
+            ids: flags.ids,
+            vs_currencies: flags.vs_currencies
         });
         (Self {
-            ids: flags.ids.clone(),
-            vs_currencies: flags.vs_currencies.clone(),
-            btc_to_usd: flags.btc_to_usd.clone(),
             active_tab: Tab::Main,
             main_button_state: Default::default(),
             triggers_button_state: Default::default(),
@@ -66,7 +57,7 @@ impl Gui {
         }, main_tab_init_message.map(GuiMessage::MainTabMessage))
     }
 
-    pub fn update(&mut self, message: GuiMessage, clipboard: &mut Clipboard) -> iced::Command<GuiMessage> {
+    pub fn update(&mut self, message: GuiMessage, clipboard: &mut Clipboard) -> Command<GuiMessage> {
         match message {
             GuiMessage::TabSelected(tab) => {
                 self.active_tab = tab;

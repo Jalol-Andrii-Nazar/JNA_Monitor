@@ -1,4 +1,3 @@
-use chrono::{NaiveDate, NaiveDateTime};
 use iced::{Application, Clipboard, Column, Command, Text, executor::Default};
 
 enum GuiState {
@@ -7,11 +6,10 @@ enum GuiState {
     Initialized(crate::gui::Gui)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum GuiMessage {
     IdsLoaded(Vec<String>),
     VsCurrenciesLoaded(Vec<String>),
-    BtcToUsdLoaded(Vec<(NaiveDate, f64)>),
     Error(String),
     GuiMessage(crate::gui::GuiMessage)
 }
@@ -21,7 +19,6 @@ pub struct Gui {
     state: GuiState,
     ids: Option<Vec<String>>,
     vs_currencies: Option<Vec<String>>,
-    btc_to_usd: Option<Vec<(NaiveDate, f64)>>
 }
 
 impl Application for Gui {
@@ -38,12 +35,11 @@ impl Application for Gui {
             state: GuiState::Initilizing,
             ids: None,
             vs_currencies: None,
-            btc_to_usd: None
         }, Command::perform(load_ids(), unwrap_result))
     }
 
     fn title(&self) -> String {
-        if let GuiState::Initialized(ref gui) = self.state {
+        if let GuiState::Initialized(ref _gui) = self.state {
             format!("{} v.{}", crate::NAME, crate::VERSION)
         } else {
             format!("Loading...")
@@ -61,18 +57,11 @@ impl Application for Gui {
             GuiMessage::VsCurrenciesLoaded(vs_currencies) => {
                 self.vs_currencies = Some(vs_currencies);
                 self.messages.push(format!("VsCurrencies loaded successfully..."));
-                self.messages.push(format!("Loading BtcToUsd..."));
-                Command::perform(load_btc_to_usd(), unwrap_result)
-            }
-            GuiMessage::BtcToUsdLoaded(btc_to_usd) => {
-                self.btc_to_usd = Some(btc_to_usd);
-                self.messages.push(format!("BtcToUsd loaded successfully..."));
                 self.messages.push(format!("Starting the GUI..."));
                 let (gui, gui_message) = crate::gui::Gui::new(crate::gui::GuiFlags {
                     ids: self.ids.take().unwrap(),
                     vs_currencies: self.vs_currencies.take().unwrap(),
-                    btc_to_usd: self.btc_to_usd.take().unwrap()
-                });
+                    });
                 self.state = GuiState::Initialized(gui);
                 gui_message.map(Self::Message::GuiMessage)
             }
@@ -120,14 +109,4 @@ async fn load_ids() -> Result<GuiMessage, Box<dyn std::error::Error>> {
 async fn load_vs_currencies() -> Result<GuiMessage, Box<dyn std::error::Error>> {
     let vs_currencies = coingecko_requests::client::Client::new().simple_supported_vs_currencies().await?;
     Ok(GuiMessage::VsCurrenciesLoaded(vs_currencies))
-}
-
-async fn load_btc_to_usd() -> Result<GuiMessage, Box<dyn std::error::Error>> {
-    let btc_to_usd = coingecko_requests::client::Client::new().coins_id_market_chart_range("bitcoin", "usd", 1392577232, 1422577232)
-        .await?
-        .prices
-        .into_iter()
-        .map(|(timestamp, price)| (NaiveDateTime::from_timestamp(timestamp as i64 / 1000, 0).date(), price))
-        .collect::<Vec<_>>();
-    Ok(GuiMessage::BtcToUsdLoaded(btc_to_usd))
 }
