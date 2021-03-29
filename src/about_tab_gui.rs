@@ -2,6 +2,11 @@ use iced::{Clipboard, Command, Text};
 
 pub struct GuiFlags;
 
+#[derive(Debug, Clone)]
+pub enum GuiMessage {
+
+}
+
 #[derive(Default)]
 pub struct Gui {
 
@@ -17,11 +22,6 @@ impl Gui {
     }
 
     pub fn view(&mut self) -> iced::Element<'_, GuiMessage> {
-        Text::new("Hello Triggers").into()
+        Text::new("Hello About").into()
     }
-}
-
-#[derive(Debug, Clone)]
-pub enum GuiMessage {
-
 }

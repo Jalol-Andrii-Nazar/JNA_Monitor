@@ -31,7 +31,7 @@ impl Application for Gui {
 
     type Flags = ();
 
-    fn new(flags: Self::Flags) -> (Self, Command<Self::Message>) {
+    fn new(_flags: Self::Flags) -> (Self, Command<Self::Message>) {
         let messages = vec![format!("Loading '{}' v. {}. Please wait...", crate::NAME, crate::VERSION), format!("Loading ids...")];
         (Self {
             messages,
@@ -44,7 +44,7 @@ impl Application for Gui {
 
     fn title(&self) -> String {
         if let GuiState::Initialized(ref gui) = self.state {
-            gui.title()
+            format!("{} v.{}", crate::NAME, crate::VERSION)
         } else {
             format!("Loading...")
         }
@@ -85,7 +85,7 @@ impl Application for Gui {
                 if let GuiState::Initialized(ref mut gui) = self.state {
                     gui.update(msg, clipboard).map(Self::Message::GuiMessage)
                 } else {
-                    panic!("Should not happen")
+                    panic!("SHOULD NOT HAPPEN: gui message cannot be received before initialization is completed.")
                 }
             }
         }
