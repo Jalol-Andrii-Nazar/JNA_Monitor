@@ -141,7 +141,7 @@ impl Gui {
 
 async fn load_data(id: String, vs_currency: String) -> GuiMessage {
     let client = coingecko_requests::client::Client::new();
-    let result = client.coins_id_market_chart_range(&id, &vs_currency, 1392577232, 1422577232)
+    let result = client.market_chart_range(&id, &vs_currency, 1392577232, 1422577232)
         .await
         .map(|coin_range| coin_range.prices
             .into_iter()

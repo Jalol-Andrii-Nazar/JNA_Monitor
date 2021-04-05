@@ -107,6 +107,6 @@ async fn load_ids() -> Result<GuiMessage, Box<dyn std::error::Error>> {
 }
 
 async fn load_vs_currencies() -> Result<GuiMessage, Box<dyn std::error::Error>> {
-    let vs_currencies = coingecko_requests::client::Client::new().simple_supported_vs_currencies().await?;
+    let vs_currencies = coingecko_requests::client::Client::new().supported_vs_currencies().await?;
     Ok(GuiMessage::VsCurrenciesLoaded(vs_currencies))
 }
