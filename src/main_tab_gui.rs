@@ -94,9 +94,7 @@ impl Gui {
                 if data.is_empty() {
                     main_column = main_column.push(Text::new("There is no data for this period of time!"));
                 } else {
-                    let settings = line::data::Settings {
-                        ..Default::default()
-                    };
+                    let settings = Default::default();
                     let min_x_value = data.iter().map(|(d, _)| *d).min().unwrap();
                     let max_x_value = data.iter().map(|(d, _)| *d).max().unwrap();
                     let min_y_value = data.iter().map(|(_, p)| *p).min_by(|f1, f2| f1.total_cmp(f2)).unwrap();
