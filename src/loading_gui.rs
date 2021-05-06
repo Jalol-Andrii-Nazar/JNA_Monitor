@@ -6,10 +6,10 @@ enum GuiState {
     Initialized(crate::gui::Gui)
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum GuiMessage {
-    IdsLoaded(Vec<String>),
-    VsCurrenciesLoaded(Vec<String>),
+    CoinsLoaded(Vec<coingecko_requests::data::RawCoin>),
+    VsCurrenciesLoaded(Vec<coingecko_requests::data::RawVsCurrency>),
     Error(String),
     GuiMessage(crate::gui::GuiMessage)
 }
@@ -17,8 +17,8 @@ pub enum GuiMessage {
 pub struct Gui {
     messages: Vec<String>,
     state: GuiState,
-    ids: Option<Vec<String>>,
-    vs_currencies: Option<Vec<String>>,
+    coins: Option<Vec<coingecko_requests::data::RawCoin>>,
+    vs_currencies: Option<Vec<coingecko_requests::data::RawVsCurrency>>,
 }
 
 impl Application for Gui {
@@ -33,9 +33,9 @@ impl Application for Gui {
         (Self {
             messages,
             state: GuiState::Initilizing,
-            ids: None,
+            coins: None,
             vs_currencies: None,
-        }, Command::perform(load_ids(), unwrap_result))
+        }, Command::perform(load_coins(), unwrap_result))
     }
 
     fn title(&self) -> String {
@@ -48,18 +48,18 @@ impl Application for Gui {
 
     fn update(&mut self, message: Self::Message, clipboard: &mut Clipboard) -> Command<Self::Message> {
         match message {
-            GuiMessage::IdsLoaded(ids) => {
-                self.ids = Some(ids);
-                self.messages.push(format!("Ids loaded successfully..."));
-                self.messages.push(format!("Loading VsCurrencies..."));
+            GuiMessage::CoinsLoaded(coins) => {
+                self.coins = Some(coins);
+                self.messages.push(format!("Coins loaded successfully..."));
+                self.messages.push(format!("Loading currencies..."));
                 Command::perform(load_vs_currencies(), unwrap_result)
             }
             GuiMessage::VsCurrenciesLoaded(vs_currencies) => {
                 self.vs_currencies = Some(vs_currencies);
-                self.messages.push(format!("VsCurrencies loaded successfully..."));
+                self.messages.push(format!("Currencies loaded successfully..."));
                 self.messages.push(format!("Starting the GUI..."));
                 let (gui, gui_message) = crate::gui::Gui::new(crate::gui::GuiFlags {
-                    ids: self.ids.take().unwrap(),
+                    coins: self.coins.take().unwrap(),
                     vs_currencies: self.vs_currencies.take().unwrap(),
                     });
                 self.state = GuiState::Initialized(gui);
@@ -100,13 +100,16 @@ fn unwrap_result(result: Result<GuiMessage, Box<dyn std::error::Error>>) -> GuiM
     }
 }
 
-async fn load_ids() -> Result<GuiMessage, Box<dyn std::error::Error>> {
-    let coins = coingecko_requests::client::Client::new().coins_list().await?;
-    let ids = coins.into_iter().map(|coin| coin.id).collect::<Vec<_>>();
-    Ok(GuiMessage::IdsLoaded(ids))
+async fn load_coins() -> Result<GuiMessage, Box<dyn std::error::Error>> {
+    let api_client = coingecko_requests::api_client::Client::new();
+    let mut caching_client = coingecko_requests::caching_client::Client::new(api_client).await?;
+    let coins = caching_client.favourite_coins().await?.into_iter().map(|coin| coin.raw).collect();
+    Ok(GuiMessage::CoinsLoaded(coins))
 }
 
 async fn load_vs_currencies() -> Result<GuiMessage, Box<dyn std::error::Error>> {
-    let vs_currencies = coingecko_requests::client::Client::new().supported_vs_currencies().await?;
+    let api_client = coingecko_requests::api_client::Client::new();
+    let mut caching_client = coingecko_requests::caching_client::Client::new(api_client).await?;
+    let vs_currencies = caching_client.favourite_vs_currencies().await?.into_iter().map(|currency| currency.raw).collect();
     Ok(GuiMessage::VsCurrenciesLoaded(vs_currencies))
 }

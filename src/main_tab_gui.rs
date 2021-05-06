@@ -1,59 +1,146 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
-use chrono::{NaiveDate, NaiveDateTime};
-use hotplot::chart::line::{self, data::PlotSettings};
+use chrono::{Local, NaiveDate, NaiveDateTime};
+use hotplot::chart::line::{self, data::{PlotSettings, Settings}};
 use iced::{Canvas, Clipboard, Column, Command, Container, Element, Length, PickList, Row, Text, pick_list};
+use line::data::DistanceValue;
 
 pub struct GuiFlags {
-    pub ids: Vec<String>,
-    pub vs_currencies: Vec<String>,
+    pub coins: Vec<coingecko_requests::data::RawCoin>,
+    pub vs_currencies: Vec<coingecko_requests::data::RawVsCurrency>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RawCoinWrapper(coingecko_requests::data::RawCoin);
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RawVsCurrencyWrapper(coingecko_requests::data::RawVsCurrency);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TimePeriod {
+    Daily,
+    Weekly,
+    Monthly,
+    Yearly,
+    All
+}
+
+impl Default for TimePeriod {
+    fn default() -> Self {
+        Self::Weekly
+    }
+}
+
+impl Display for TimePeriod {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TimePeriod::Daily => { write!(f, "Daily") }
+            TimePeriod::Weekly => { write!(f, "Weekly") }
+            TimePeriod::Monthly => { write!(f, "Monthly") }
+            TimePeriod::Yearly => { write!(f, "Yearly") }
+            TimePeriod::All => { write!(f, "All") }
+        }
+    }
+}
+
+impl TimePeriod {
+    pub fn all() -> Vec<Self> {
+        vec![Self::Daily, Self::Weekly, Self::Monthly, Self::Yearly, Self::All]
+    }
+
+    pub fn get_from_to(&self, current: u64) -> (u64, u64) {
+        return match self {
+            TimePeriod::Daily => {
+                let to = current - (current % 60);
+                let from = to - 60*60*24;
+                (from, to)
+            }
+            TimePeriod::Weekly => {
+                let to = current - (current % (60*60));
+                let from = to - 60*60*24*7;
+                (from, to)
+            }
+            TimePeriod::Monthly => {
+                let to = current - (current % (60*60*24));
+                let from = to - 60*60*24*30;
+                (from, to)
+            }
+            TimePeriod::Yearly => {
+                let to = current - (current % (60*60*24));
+                let from = to - 60*60*24*365;
+                (from, to)
+            }
+            TimePeriod::All => {
+                let to = current - (current % (60*60*24));
+                let from = 0;
+                (from, to)
+            }
+        }
+    }
 }
 
 pub struct Gui {
-    ids: Vec<String>,
-    vs_currencies: Vec<String>,
-    data: Result<Option<Vec<(NaiveDate, f64)>>, Box<dyn std::error::Error>>,
-    picked_id: String,
-    picked_vs_currency: String,
-    id_picklist_state: pick_list::State<String>,
-    vs_currency_picklist_state: pick_list::State<String>,
+    coins: Vec<RawCoinWrapper>,
+    vs_currencies: Vec<RawVsCurrencyWrapper>,
+    time_periods: Vec<TimePeriod>,
+    data: Result<Option<Vec<(NaiveDateTime, f64)>>, Box<dyn std::error::Error>>,
+    picked_coin: RawCoinWrapper,
+    picked_vs_currency: RawVsCurrencyWrapper,
+    coin_picklist_state: pick_list::State<RawCoinWrapper>,
+    vs_currency_picklist_state: pick_list::State<RawVsCurrencyWrapper>,
+    time_period_packlist_state: pick_list::State<TimePeriod>,
+    time_period: TimePeriod
 }
 
 #[derive(Debug, Clone)]
 pub enum GuiMessage {
-    IdPicked(String),
-    VsCurrencyPicked(String),
-    DataLoaded(Vec<(NaiveDate, f64)>),
+    CoinPicked(RawCoinWrapper),
+    VsCurrencyPicked(RawVsCurrencyWrapper),
+    TimePeriodPicked(TimePeriod),
+    DataLoaded(Vec<(NaiveDateTime, f64)>),
     DataLoadFailed(String),
     ChartMessage(line::data::Message)
 }
 
 impl Gui {
     pub fn new(flags: GuiFlags) -> (Self, Command<GuiMessage>) {
-        let picked_id = flags.ids[0].clone();
-        let picked_vs_currency = flags.vs_currencies[0].clone();
+        let picked_coin: RawCoinWrapper = RawCoinWrapper(flags.coins.iter().find(|coin| coin.id == "bitcoin").cloned().unwrap());
+        let picked_vs_currency: RawVsCurrencyWrapper = RawVsCurrencyWrapper(flags.vs_currencies.iter().find(|currency| currency.name == "usd").cloned().unwrap());
+        let time_period: TimePeriod = Default::default();
+        let (from, to) = time_period.get_from_to(Local::now().timestamp() as u64);
+        println!("From {} to {}", from, to);
         (Self {
-            ids: flags.ids,
-            vs_currencies: flags.vs_currencies,
+            coins: flags.coins.iter().map(|coin| RawCoinWrapper(coin.clone())).collect(),
+            vs_currencies: flags.vs_currencies.iter().map(|currency| RawVsCurrencyWrapper(currency.clone())).collect(),
+            time_periods: TimePeriod::all(),
             data: Ok(None),
-            picked_id: picked_id.clone(),
+            picked_coin: picked_coin.clone(),
             picked_vs_currency: picked_vs_currency.clone(),
-            id_picklist_state: Default::default(),
+            coin_picklist_state: Default::default(),
             vs_currency_picklist_state: Default::default(),
-        }, Command::perform(load_data(picked_id.clone(), picked_vs_currency.clone()), |x| x))
+            time_period_packlist_state: Default::default(),
+            time_period: time_period.clone()
+        }, Command::perform(load_data(picked_coin.0.id.clone(), picked_vs_currency.0.name.clone(), from, to), |x| x))
     }
 
-    pub fn update(&mut self, message: GuiMessage, clipboard: &mut Clipboard) -> Command<GuiMessage> {
+    pub fn update(&mut self, message: GuiMessage, _clipboard: &mut Clipboard) -> Command<GuiMessage> {
         match message {
-            GuiMessage::IdPicked(picked) => {
-                self.picked_id = picked;
+            GuiMessage::CoinPicked(picked) => {
+                self.picked_coin = picked;
                 self.data = Ok(None);
-                Command::perform(load_data(self.picked_id.clone(), self.picked_vs_currency.clone()), |x| x)
+                let (from, to) = self.time_period.get_from_to(Local::now().timestamp() as u64);
+                Command::perform(load_data(self.picked_coin.0.id.clone(), self.picked_vs_currency.0.name.clone(), from, to), |x| x)
             }
             GuiMessage::VsCurrencyPicked(picked) => {
                 self.picked_vs_currency = picked;
                 self.data = Ok(None);
-                Command::perform(load_data(self.picked_id.clone(), self.picked_vs_currency.clone()), |x| x)
+                let (from, to) = self.time_period.get_from_to(Local::now().timestamp() as u64);
+                Command::perform(load_data(self.picked_coin.0.id.clone(), self.picked_vs_currency.0.name.clone(), from, to), |x| x)
+            }
+            GuiMessage::TimePeriodPicked(picked) => {
+                self.time_period = picked;
+                self.data = Ok(None);
+                let (from, to) = self.time_period.get_from_to(Local::now().timestamp() as u64);
+                Command::perform(load_data(self.picked_coin.0.id.clone(), self.picked_vs_currency.0.name.clone(), from, to), |x| x)
             }
             GuiMessage::DataLoaded(data) => {
                 self.data = Ok(Some(data));
@@ -74,18 +161,24 @@ impl Gui {
 
         let mut chart_settings_row = Row::new().spacing(5).width(Length::Shrink);
 
-        let mut id_column = Column::new().spacing(5).width(Length::Units(200));
-        id_column = id_column.push(Text::new("Cryptocurrency id"));
-        let id_picklist = PickList::new(&mut self.id_picklist_state, &self.ids, Some(self.picked_id.clone()), GuiMessage::IdPicked).width(Length::Fill);
-        id_column = id_column.push(id_picklist);
+        let mut coin_column = Column::new().spacing(5).width(Length::FillPortion(1));
+        coin_column = coin_column.push(Text::new("Coin id"));
+        let coin_picklist = PickList::new(&mut self.coin_picklist_state, &self.coins, Some(self.picked_coin.clone()), GuiMessage::CoinPicked).width(Length::Fill);
+        coin_column = coin_column.push(coin_picklist);
 
-        let mut vs_currency_column = Column::new().spacing(5).width(Length::Units(200));
-        vs_currency_column = vs_currency_column.push(Text::new("Vs Currency"));
+        let mut vs_currency_column = Column::new().spacing(5).width(Length::FillPortion(1));
+        vs_currency_column = vs_currency_column.push(Text::new("Currency name"));
         let vs_currency_picklist = PickList::new(&mut self.vs_currency_picklist_state, &self.vs_currencies, Some(self.picked_vs_currency.clone()), GuiMessage::VsCurrencyPicked).width(Length::Fill);
         vs_currency_column = vs_currency_column.push(vs_currency_picklist);
+
+        let mut time_period_column = Column::new().spacing(5).width(Length::FillPortion(1));
+        time_period_column = time_period_column.push(Text::new("Time period"));
+        let time_period_picklist = PickList::new(&mut self.time_period_packlist_state, &self.time_periods, Some(self.time_period.clone()), GuiMessage::TimePeriodPicked).width(Length::Fill);
+        time_period_column = time_period_column.push(time_period_picklist);
         
-        chart_settings_row = chart_settings_row.push(id_column);
+        chart_settings_row = chart_settings_row.push(coin_column);
         chart_settings_row = chart_settings_row.push(vs_currency_column);
+        chart_settings_row = chart_settings_row.push(time_period_column);
 
         main_column = main_column.push(chart_settings_row);
 
@@ -94,12 +187,20 @@ impl Gui {
                 if data.is_empty() {
                     main_column = main_column.push(Text::new("There is no data for this period of time!"));
                 } else {
-                    let settings = Default::default();
+                    let settings = Settings {
+                        title: format!("{} to {} graph", self.picked_coin.0.id, self.picked_vs_currency.0.name),
+                        min_x_label_distance: DistanceValue::Fixed(200.0),
+                        min_y_label_distance: DistanceValue::Fixed(100.0),
+                        ..Default::default()
+                    };
                     let min_x_value = data.iter().map(|(d, _)| *d).min().unwrap();
                     let max_x_value = data.iter().map(|(d, _)| *d).max().unwrap();
-                    let min_y_value = data.iter().map(|(_, p)| *p).min_by(|f1, f2| f1.total_cmp(f2)).unwrap();
-                    let max_y_value = data.iter().map(|(_, p)| *p).max_by(|f1, f2| f1.total_cmp(f2)).unwrap();
+                    let min_y_value = data.iter().map(|(_, p)| *p).min_by(|f1, f2| f1.total_cmp(f2)).unwrap().floor();
+                    let max_y_value = data.iter().map(|(_, p)| *p).max_by(|f1, f2| f1.total_cmp(f2)).unwrap().ceil();
                     let plot_settings = PlotSettings {
+                        point_size1: 4.0,
+                        point_size2: 5.5,
+                        point_size3: 7.0,
                         ..Default::default()
                     };
                     let mut plot_data = HashMap::new();
@@ -110,9 +211,7 @@ impl Gui {
                         max_x_value,
                         min_y_value,
                         max_y_value,
-                        plot_data,
-                        Vec::new(),
-                        Vec::new()
+                        plot_data
                     );
             
                     let canvas = Canvas::new(chart).width(Length::Fill).height(Length::Fill);
@@ -139,13 +238,13 @@ impl Gui {
     }
 }
 
-async fn load_data(id: String, vs_currency: String) -> GuiMessage {
-    let client = coingecko_requests::client::Client::new();
-    let result = client.market_chart_range(&id, &vs_currency, 1392577232, 1422577232)
+async fn load_data(id: String, vs_currency: String, from: u64, to: u64) -> GuiMessage {
+    let client = coingecko_requests::api_client::Client::new();
+    let result = client.market_chart(&id, &vs_currency, from, to)
         .await
         .map(|coin_range| coin_range.prices
             .into_iter()
-            .map(|(timestamp, price)| (NaiveDateTime::from_timestamp(timestamp as i64 / 1000, 0).date(), price))
+            .map(|(timestamp, price)| (NaiveDateTime::from_timestamp(timestamp as i64 / 1000, 0), price))
             .collect::<Vec<_>>());
     match result {
         Ok(data) => {
@@ -154,5 +253,17 @@ async fn load_data(id: String, vs_currency: String) -> GuiMessage {
         Err(err) => {
             GuiMessage::DataLoadFailed(err.to_string())
         }
+    }
+}
+
+impl Display for RawCoinWrapper {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0.id)
+    }
+}
+
+impl Display for RawVsCurrencyWrapper {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0.name)
     }
 }

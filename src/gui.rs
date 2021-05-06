@@ -5,8 +5,8 @@ use crate::*;
 const ENABLE_EXPLAIN: bool = true;
 
 pub struct GuiFlags {
-    pub ids: Vec<String>,
-    pub vs_currencies: Vec<String>,
+    pub coins: Vec<coingecko_requests::data::RawCoin>,
+    pub vs_currencies: Vec<coingecko_requests::data::RawVsCurrency>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -41,7 +41,7 @@ pub enum GuiMessage {
 impl Gui {
     pub fn new(flags: GuiFlags) -> (Self, Command<GuiMessage>) {
         let (main_tab_state, main_tab_init_message) = main_tab_gui::Gui::new(main_tab_gui::GuiFlags {
-            ids: flags.ids,
+            coins: flags.coins,
             vs_currencies: flags.vs_currencies
         });
         (Self {
