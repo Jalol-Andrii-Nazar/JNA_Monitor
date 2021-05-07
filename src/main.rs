@@ -29,6 +29,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let icon_height = rgba.height();
 
     wsettings.icon = Some(Icon::from_rgba(rgba.into_raw(), icon_width, icon_height).unwrap());
+    wsettings.size = (1024, 720);
+    wsettings.resizable = false;
     settings.window = wsettings;
 
     loading_gui::Gui::run(settings)?;

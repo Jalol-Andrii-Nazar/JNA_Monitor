@@ -2,7 +2,7 @@ use iced::{Align, Button, Clipboard, Color, Column, Command, Element, Length, Ro
 
 use crate::*;
 
-const ENABLE_EXPLAIN: bool = true;
+const ENABLE_EXPLAIN: bool = false;
 
 pub struct GuiFlags {
     pub coins: Vec<coingecko_requests::data::RawCoin>,
@@ -144,20 +144,20 @@ impl Gui {
             .height(Length::Fill);
         global_menu = global_menu.push(
             Button::new(&mut self.main_button_state, Text::new("Main".to_string()))
-                .on_press(GuiMessage::TabSelected(Tab::Main)))
-                .width(Length::Units(100));
+                .on_press(GuiMessage::TabSelected(Tab::Main))
+                .width(Length::Units(100)));
         global_menu = global_menu.push(
             Button::new(&mut self.triggers_button_state, Text::new("Triggers".to_string()))
-                .on_press(GuiMessage::TabSelected(Tab::Triggers)))
-                .width(Length::Units(100));
+                .on_press(GuiMessage::TabSelected(Tab::Triggers))
+                .width(Length::Units(100)));
         global_menu = global_menu.push(
             Button::new(&mut self.settings_button_state, Text::new("Settings".to_string()))
-                .on_press(GuiMessage::TabSelected(Tab::Settings)))
-                .width(Length::Units(100));
+                .on_press(GuiMessage::TabSelected(Tab::Settings))
+                .width(Length::Units(100)));
         global_menu = global_menu.push(
             Button::new(&mut self.about_button_state, Text::new("About".to_string()))
-                .on_press(GuiMessage::TabSelected(Tab::About)))
-                .width(Length::Units(100));
+                .on_press(GuiMessage::TabSelected(Tab::About))
+                .width(Length::Units(100)));
 
         let mut element = Row::new()
             .padding(2)
