@@ -17,7 +17,7 @@ impl Gui {
         (Self{}, Command::none())
     }
 
-    pub fn update(&mut self, message: Message, clipboard: &mut Clipboard) -> Command<Message> {
+    pub fn update(&mut self, message: Message, _clipboard: &mut Clipboard) -> Command<Message> {
         Command::none()
     }
 
