@@ -1,9 +1,9 @@
 use iced::{Clipboard, Command, Text};
 
-pub struct GuiFlags;
+pub struct Flags;
 
 #[derive(Debug, Clone)]
-pub enum GuiMessage {
+pub enum Message {
 
 }
 
@@ -13,15 +13,15 @@ pub struct Gui {
 }
 
 impl Gui {
-    pub fn new(flags: GuiFlags) -> (Self, Command<GuiMessage>) {
+    pub fn new(flags: Flags) -> (Self, Command<Message>) {
         (Self{}, Command::none())
     }
 
-    pub fn update(&mut self, message: GuiMessage, clipboard: &mut Clipboard) -> Command<GuiMessage> {
+    pub fn update(&mut self, message: Message, clipboard: &mut Clipboard) -> Command<Message> {
         Command::none()
     }
 
-    pub fn view(&mut self) -> iced::Element<'_, GuiMessage> {
+    pub fn view(&mut self) -> iced::Element<'_, Message> {
         Text::new("Hello About").into()
     }
 }

@@ -1,45 +1,52 @@
-use iced::{Application, Clipboard, Column, Command, Text, executor::Default};
+use std::{rc::Rc, sync::{Arc, RwLock}};
 
-enum GuiState {
+use directories::ProjectDirs;
+use iced::{Application, Clipboard, Column, Command, Text, executor};
+use tokio::fs::OpenOptions;
+
+enum State {
     Initilizing,
     Errored,
     Initialized(crate::gui::Gui)
 }
 
 #[derive(Debug)]
-pub enum GuiMessage {
-    CoinsLoaded(Vec<coingecko_requests::data::RawCoin>),
-    VsCurrenciesLoaded(Vec<coingecko_requests::data::RawVsCurrency>),
+pub enum Message {
+    SettingsLoaded(crate::settings::Settings),
+    CoinsLoaded(Vec<coingecko_requests::data::Coin>),
+    CurrenciesLoaded(Vec<coingecko_requests::data::VsCurrency>),
     Error(String),
-    GuiMessage(crate::gui::GuiMessage)
+    GuiMessage(crate::gui::Message)
 }
 
 pub struct Gui {
     messages: Vec<String>,
-    state: GuiState,
-    coins: Option<Vec<coingecko_requests::data::RawCoin>>,
-    vs_currencies: Option<Vec<coingecko_requests::data::RawVsCurrency>>,
+    state: State,
+    settings: Option<crate::settings::Settings>,
+    coins: Option<Vec<coingecko_requests::data::Coin>>,
+    currencies: Option<Vec<coingecko_requests::data::VsCurrency>>,
 }
 
 impl Application for Gui {
-    type Executor = Default;
+    type Executor = executor::Default;
 
-    type Message = GuiMessage;
+    type Message = Message;
 
     type Flags = ();
 
     fn new(_flags: Self::Flags) -> (Self, Command<Self::Message>) {
-        let messages = vec![format!("Loading '{}' v. {}. Please wait...", crate::NAME, crate::VERSION), format!("Loading ids...")];
+        let messages = vec![format!("Loading '{}' v. {}. Please wait...", crate::NAME, crate::VERSION), format!("Loading settings...")];
         (Self {
             messages,
-            state: GuiState::Initilizing,
+            state: State::Initilizing,
+            settings: None,
             coins: None,
-            vs_currencies: None,
-        }, Command::perform(load_coins(), unwrap_result))
+            currencies: None,
+        }, Command::perform(load_settings(), unwrap_result))
     }
 
     fn title(&self) -> String {
-        if let GuiState::Initialized(ref _gui) = self.state {
+        if let State::Initialized(ref _gui) = self.state {
             format!("{} v.{}", crate::NAME, crate::VERSION)
         } else {
             format!("Loading...")
@@ -48,30 +55,40 @@ impl Application for Gui {
 
     fn update(&mut self, message: Self::Message, clipboard: &mut Clipboard) -> Command<Self::Message> {
         match message {
-            GuiMessage::CoinsLoaded(coins) => {
+            Message::SettingsLoaded(settings) => {
+                self.settings = Some(settings);
+                self.messages.push(format!("Settings loaded successfully!"));
+                self.messages.push(format!("Loading coins..."));
+                Command::perform(load_coins(), unwrap_result)
+            }
+            Message::CoinsLoaded(coins) => {
                 self.coins = Some(coins);
                 self.messages.push(format!("Coins loaded successfully..."));
                 self.messages.push(format!("Loading currencies..."));
                 Command::perform(load_vs_currencies(), unwrap_result)
             }
-            GuiMessage::VsCurrenciesLoaded(vs_currencies) => {
-                self.vs_currencies = Some(vs_currencies);
+            Message::CurrenciesLoaded(vs_currencies) => {
+                self.currencies = Some(vs_currencies);
                 self.messages.push(format!("Currencies loaded successfully..."));
                 self.messages.push(format!("Starting the GUI..."));
-                let (gui, gui_message) = crate::gui::Gui::new(crate::gui::GuiFlags {
-                    coins: self.coins.take().unwrap(),
-                    vs_currencies: self.vs_currencies.take().unwrap(),
-                    });
-                self.state = GuiState::Initialized(gui);
+                let coins = Rc::new(self.coins.take().unwrap());
+                let currencies = Rc::new(self.currencies.take().unwrap());
+                let settings = Arc::new(RwLock::new(self.settings.take().unwrap()));
+                let (gui, gui_message) = crate::gui::Gui::new(crate::gui::Flags {
+                    coins,
+                    currencies,
+                    settings,
+                });
+                self.state = State::Initialized(gui);
                 gui_message.map(Self::Message::GuiMessage)
             }
-            GuiMessage::Error(error) => {
-                self.state = GuiState::Errored;
+            Message::Error(error) => {
+                self.state = State::Errored;
                 self.messages.push(format!("An error happened! {}", error));
                 Command::none()
             }
-            GuiMessage::GuiMessage(msg) => {
-                if let GuiState::Initialized(ref mut gui) = self.state {
+            Message::GuiMessage(msg) => {
+                if let State::Initialized(ref mut gui) = self.state {
                     gui.update(msg, clipboard).map(Self::Message::GuiMessage)
                 } else {
                     panic!("SHOULD NOT HAPPEN: gui message cannot be received before initialization is completed.")
@@ -81,8 +98,8 @@ impl Application for Gui {
     }
 
     fn view(&mut self) -> iced::Element<'_, Self::Message> {
-        if let GuiState::Initialized(ref mut gui) = self.state {
-            gui.view().map(GuiMessage::GuiMessage)
+        if let State::Initialized(ref mut gui) = self.state {
+            gui.view().map(Message::GuiMessage)
         } else {
             let mut column = Column::new();
             for message in self.messages.iter() {
@@ -93,23 +110,47 @@ impl Application for Gui {
     }
 }
 
-fn unwrap_result(result: Result<GuiMessage, Box<dyn std::error::Error>>) -> GuiMessage {
+fn unwrap_result(result: Result<Message, Box<dyn std::error::Error>>) -> Message {
     match result {
         Ok(message) => { message }
-        Err(err) => { GuiMessage::Error(err.to_string()) }
+        Err(err) => { Message::Error(err.to_string()) }
     }
 }
 
-async fn load_coins() -> Result<GuiMessage, Box<dyn std::error::Error>> {
-    let api_client = coingecko_requests::api_client::Client::new();
-    let mut caching_client = coingecko_requests::caching_client::Client::new(api_client).await?;
-    let coins = caching_client.favourite_coins().await?.into_iter().map(|coin| coin.raw).collect();
-    Ok(GuiMessage::CoinsLoaded(coins))
+async fn load_settings() -> Result<Message, Box<dyn std::error::Error>> {
+    let project_dirs = ProjectDirs::from("org", "jna", "jna")
+        .ok_or::<Box<dyn std::error::Error>>(From::from("Failed to get project_dirs!"))?;
+    
+    let config_dir = project_dirs.config_dir().to_owned();
+    if !config_dir.exists() {
+        tokio::fs::create_dir_all(&config_dir).await?;
+    }
+    let mut config_file = config_dir;
+    config_file.set_file_name("config");
+    config_file.set_extension("bin");
+    if config_file.exists() {
+        let mut file = OpenOptions::new().read(true).open(&config_file).await?;
+        let settings = crate::settings::Settings::read(&mut file, config_file).await?;
+        Ok(Message::SettingsLoaded(settings))
+    } else {
+        let settings = crate::settings::Settings {
+            source: config_file,
+            ..Default::default()
+        };
+        Ok(Message::SettingsLoaded(settings))
+    }
 }
 
-async fn load_vs_currencies() -> Result<GuiMessage, Box<dyn std::error::Error>> {
+async fn load_coins() -> Result<Message, Box<dyn std::error::Error>> {
     let api_client = coingecko_requests::api_client::Client::new();
     let mut caching_client = coingecko_requests::caching_client::Client::new(api_client).await?;
-    let vs_currencies = caching_client.favourite_vs_currencies().await?.into_iter().map(|currency| currency.raw).collect();
-    Ok(GuiMessage::VsCurrenciesLoaded(vs_currencies))
+    let coins = caching_client.coins().await?;
+    Ok(Message::CoinsLoaded(coins))
+}
+
+async fn load_vs_currencies() -> Result<Message, Box<dyn std::error::Error>> {
+    let api_client = coingecko_requests::api_client::Client::new();
+    let mut caching_client = coingecko_requests::caching_client::Client::new(api_client).await?;
+    let currencies = caching_client.vs_currencies().await?;
+    Ok(Message::CurrenciesLoaded(currencies))
 }

@@ -1,7 +1,7 @@
 [package]
 name = "jna"
 version = "0.1.0"
-authors = ["CODPUD <jalol.kham.2401@gmail.com>", "Nazar Kalinowski <nazark@tutanota.com>"]
+authors = ["CODPUD <jalol.kham.2401@gmail.com>", "Nazar Kalinowski <nazark@tutanota.com>", "sumero <sumersky2001@gmail.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -13,3 +13,4 @@ iced = { version = "0.3", features = ["canvas", "tokio"] }
 image = { version = "0.23.12", default-features = false, features = ["png"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 chrono = "0.4"
+directories = "3.0.1"

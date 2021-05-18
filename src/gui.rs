@@ -1,12 +1,15 @@
+use std::{rc::Rc, sync::{Arc, RwLock}};
+
 use iced::{Align, Button, Clipboard, Color, Column, Command, Element, Length, Row, Text, button};
 
 use crate::*;
 
 const ENABLE_EXPLAIN: bool = false;
 
-pub struct GuiFlags {
-    pub coins: Vec<coingecko_requests::data::RawCoin>,
-    pub vs_currencies: Vec<coingecko_requests::data::RawVsCurrency>,
+pub struct Flags {
+    pub coins: Rc<Vec<coingecko_requests::data::Coin>>,
+    pub currencies: Rc<Vec<coingecko_requests::data::VsCurrency>>,
+    pub settings: Arc<RwLock<crate::settings::Settings>>
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -18,6 +21,9 @@ pub enum Tab {
 }
 
 pub struct Gui {
+    coins: Rc<Vec<coingecko_requests::data::Coin>>,
+    currencies: Rc<Vec<coingecko_requests::data::VsCurrency>>,
+    settings: Arc<RwLock<crate::settings::Settings>>,
     active_tab: Tab,
     main_button_state: button::State,
     triggers_button_state: button::State,
@@ -30,21 +36,25 @@ pub struct Gui {
 }
 
 #[derive(Debug, Clone)]
-pub enum GuiMessage {
+pub enum Message {
     TabSelected(Tab),
-    MainTabMessage(main_tab_gui::GuiMessage),
-    TriggersTabMessage(triggers_tab_gui::GuiMessage),
-    SettingsTabMessage(settings_tab_gui::GuiMessage),
-    AboutTabMessage(about_tab_gui::GuiMessage),
+    MainTabMessage(main_tab_gui::Message),
+    TriggersTabMessage(triggers_tab_gui::Message),
+    SettingsTabMessage(settings_tab_gui::Message),
+    AboutTabMessage(about_tab_gui::Message),
 }
 
 impl Gui {
-    pub fn new(flags: GuiFlags) -> (Self, Command<GuiMessage>) {
-        let (main_tab_state, main_tab_init_message) = main_tab_gui::Gui::new(main_tab_gui::GuiFlags {
-            coins: flags.coins,
-            vs_currencies: flags.vs_currencies
+    pub fn new(flags: Flags) -> (Self, Command<Message>) {
+        let (main_tab_state, main_tab_init_message) = main_tab_gui::Gui::new(main_tab_gui::Flags {
+            coins: flags.coins.clone(),
+            currencies: flags.currencies.clone(),
+            settings: flags.settings.clone(),
         });
         (Self {
+            coins: flags.coins,
+            currencies: flags.currencies,
+            settings: flags.settings,
             active_tab: Tab::Main,
             main_button_state: Default::default(),
             triggers_button_state: Default::default(),
@@ -54,12 +64,12 @@ impl Gui {
             triggers_tab_state: None,
             settings_tab_state: None,
             about_tab_state: None,
-        }, main_tab_init_message.map(GuiMessage::MainTabMessage))
+        }, main_tab_init_message.map(Message::MainTabMessage))
     }
 
-    pub fn update(&mut self, message: GuiMessage, clipboard: &mut Clipboard) -> Command<GuiMessage> {
+    pub fn update(&mut self, message: Message, clipboard: &mut Clipboard) -> Command<Message> {
         match message {
-            GuiMessage::TabSelected(tab) => {
+            Message::TabSelected(tab) => {
                 self.active_tab = tab;
                 match tab {
                     Tab::Main => {
@@ -72,9 +82,9 @@ impl Gui {
                                 Command::none()
                             }
                             None => {
-                                let (triggers_tab_state, triggers_tab_init_message) = triggers_tab_gui::Gui::new(triggers_tab_gui::GuiFlags {});
+                                let (triggers_tab_state, triggers_tab_init_message) = triggers_tab_gui::Gui::new(triggers_tab_gui::Flags {});
                                 self.triggers_tab_state = Some(triggers_tab_state);
-                                triggers_tab_init_message.map(GuiMessage::TriggersTabMessage)
+                                triggers_tab_init_message.map(Message::TriggersTabMessage)
                             }
                         }
                     }
@@ -84,9 +94,11 @@ impl Gui {
                                 Command::none()
                             }
                             None => {
-                                let (settings_tab_state, settings_tab_init_message) = settings_tab_gui::Gui::new(settings_tab_gui::GuiFlags {});
+                                let (settings_tab_state, settings_tab_init_message) = settings_tab_gui::Gui::new(settings_tab_gui::Flags {
+                                    settings: self.settings.clone(),
+                                });
                                 self.settings_tab_state = Some(settings_tab_state);
-                                settings_tab_init_message.map(GuiMessage::SettingsTabMessage)
+                                settings_tab_init_message.map(Message::SettingsTabMessage)
                             }
                         }
                     }
@@ -96,46 +108,46 @@ impl Gui {
                                 Command::none()
                             }
                             None => {
-                                let (about_tab_state, about_tab_init_message) = about_tab_gui::Gui::new(about_tab_gui::GuiFlags {});
+                                let (about_tab_state, about_tab_init_message) = about_tab_gui::Gui::new(about_tab_gui::Flags {});
                                 self.about_tab_state = Some(about_tab_state);
-                                about_tab_init_message.map(GuiMessage::AboutTabMessage)
+                                about_tab_init_message.map(Message::AboutTabMessage)
                             }
                         }
                     }
                 }
             }
-            GuiMessage::MainTabMessage(msg) => {
+            Message::MainTabMessage(msg) => {
                 self.main_tab_state
                     .as_mut()
                     .expect("SHOULD NOT HAPPEN: main tab is initilized in the `new` function!")
                     .update(msg, clipboard)
-                    .map(GuiMessage::MainTabMessage)
+                    .map(Message::MainTabMessage)
             }
-            GuiMessage::TriggersTabMessage(msg) => {
+            Message::TriggersTabMessage(msg) => {
                 self.triggers_tab_state
                     .as_mut()
                     .expect("SHOULD NOT HAPPEN: a message for triggers tab cannot be received before it is initialized!")
                     .update(msg, clipboard)
-                    .map(GuiMessage::TriggersTabMessage)
+                    .map(Message::TriggersTabMessage)
             }
-            GuiMessage::SettingsTabMessage(msg) => {
+            Message::SettingsTabMessage(msg) => {
                 self.settings_tab_state
                     .as_mut()
                     .expect("SHOULD NOT HAPPEN: a message for settings tab cannot be received before it is initialized!")
                     .update(msg, clipboard)
-                    .map(GuiMessage::SettingsTabMessage)
+                    .map(Message::SettingsTabMessage)
             }
-            GuiMessage::AboutTabMessage(msg) => {
+            Message::AboutTabMessage(msg) => {
                 self.about_tab_state
                     .as_mut()
                     .expect("SHOULD NOT HAPPEN: a message for about tab cannot be received before it is initialized!")
                     .update(msg, clipboard)
-                    .map(GuiMessage::AboutTabMessage)
+                    .map(Message::AboutTabMessage)
             }
         }
     }
 
-    pub fn view(&mut self) -> iced::Element<'_, GuiMessage> {
+    pub fn view(&mut self) -> iced::Element<'_, Message> {
         let mut global_menu = Column::new()
             .spacing(5)
             .align_items(Align::Start)
@@ -144,19 +156,19 @@ impl Gui {
             .height(Length::Fill);
         global_menu = global_menu.push(
             Button::new(&mut self.main_button_state, Text::new("Main".to_string()))
-                .on_press(GuiMessage::TabSelected(Tab::Main))
+                .on_press(Message::TabSelected(Tab::Main))
                 .width(Length::Units(100)));
         global_menu = global_menu.push(
             Button::new(&mut self.triggers_button_state, Text::new("Triggers".to_string()))
-                .on_press(GuiMessage::TabSelected(Tab::Triggers))
+                .on_press(Message::TabSelected(Tab::Triggers))
                 .width(Length::Units(100)));
         global_menu = global_menu.push(
             Button::new(&mut self.settings_button_state, Text::new("Settings".to_string()))
-                .on_press(GuiMessage::TabSelected(Tab::Settings))
+                .on_press(Message::TabSelected(Tab::Settings))
                 .width(Length::Units(100)));
         global_menu = global_menu.push(
             Button::new(&mut self.about_button_state, Text::new("About".to_string()))
-                .on_press(GuiMessage::TabSelected(Tab::About))
+                .on_press(Message::TabSelected(Tab::About))
                 .width(Length::Units(100)));
 
         let mut element = Row::new()
@@ -173,32 +185,32 @@ impl Gui {
                     .as_mut()
                     .expect("SHOULD NOT HAPPEN: main tab cannot be selected before it is initialized!")
                     .view()
-                    .map(GuiMessage::MainTabMessage));
+                    .map(Message::MainTabMessage));
             }
             Tab::Triggers => {
                 element = element.push(self.triggers_tab_state
                     .as_mut()
                     .expect("SHOULD NOT HAPPEN: triggers tab cannot be selected before it is initialized!")
                     .view()
-                    .map(GuiMessage::TriggersTabMessage));
+                    .map(Message::TriggersTabMessage));
             }
             Tab::Settings => {
                 element = element.push(self.settings_tab_state
                     .as_mut()
                     .expect("SHOULD NOT HAPPEN: settings tab cannot be selected before it is initialized!")
                     .view()
-                    .map(GuiMessage::SettingsTabMessage));
+                    .map(Message::SettingsTabMessage));
             }
             Tab::About => {
                 element = element.push(self.about_tab_state
                     .as_mut()
                     .expect("SHOULD NOT HAPPEN: about tab cannot be selected before it is initialized!")
                     .view()
-                    .map(GuiMessage::AboutTabMessage));
+                    .map(Message::AboutTabMessage));
             }
         }
 
-        let mut menu: Element<GuiMessage> = element.into();
+        let mut menu: Element<Message> = element.into();
         if ENABLE_EXPLAIN {
             menu = menu.explain(Color::BLACK);
         }
