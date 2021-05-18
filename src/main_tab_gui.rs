@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Display};
 
-use chrono::{Local, NaiveDate, NaiveDateTime};
+use chrono::{Local, NaiveDateTime};
 use hotplot::chart::line::{self, data::{PlotSettings, Settings}};
 use iced::{Canvas, Clipboard, Column, Command, Container, Element, Length, PickList, Row, Text, pick_list};
 use line::data::DistanceValue;
@@ -82,6 +82,7 @@ pub struct Gui {
     coins: Vec<RawCoinWrapper>,
     vs_currencies: Vec<RawVsCurrencyWrapper>,
     time_periods: Vec<TimePeriod>,
+    latest_data_request_timestamp: u64,
     data: Result<Option<Vec<(NaiveDateTime, f64)>>, Box<dyn std::error::Error>>,
     picked_coin: RawCoinWrapper,
     picked_vs_currency: RawVsCurrencyWrapper,
@@ -96,8 +97,8 @@ pub enum GuiMessage {
     CoinPicked(RawCoinWrapper),
     VsCurrencyPicked(RawVsCurrencyWrapper),
     TimePeriodPicked(TimePeriod),
-    DataLoaded(Vec<(NaiveDateTime, f64)>),
-    DataLoadFailed(String),
+    DataLoaded(Vec<(NaiveDateTime, f64)>, u64),
+    DataLoadFailed(String, u64),
     ChartMessage(line::data::Message)
 }
 
@@ -106,12 +107,14 @@ impl Gui {
         let picked_coin: RawCoinWrapper = RawCoinWrapper(flags.coins.iter().find(|coin| coin.id == "bitcoin").cloned().unwrap());
         let picked_vs_currency: RawVsCurrencyWrapper = RawVsCurrencyWrapper(flags.vs_currencies.iter().find(|currency| currency.name == "usd").cloned().unwrap());
         let time_period: TimePeriod = Default::default();
-        let (from, to) = time_period.get_from_to(Local::now().timestamp() as u64);
+        let timestamp = Local::now().timestamp() as u64;
+        let (from, to) = time_period.get_from_to(timestamp as u64);
         println!("From {} to {}", from, to);
         (Self {
             coins: flags.coins.iter().map(|coin| RawCoinWrapper(coin.clone())).collect(),
             vs_currencies: flags.vs_currencies.iter().map(|currency| RawVsCurrencyWrapper(currency.clone())).collect(),
             time_periods: TimePeriod::all(),
+            latest_data_request_timestamp: timestamp,
             data: Ok(None),
             picked_coin: picked_coin.clone(),
             picked_vs_currency: picked_vs_currency.clone(),
@@ -119,35 +122,45 @@ impl Gui {
             vs_currency_picklist_state: Default::default(),
             time_period_packlist_state: Default::default(),
             time_period: time_period.clone()
-        }, Command::perform(load_data(picked_coin.0.id.clone(), picked_vs_currency.0.name.clone(), from, to), |x| x))
+        }, Command::perform(load_data(picked_coin.0.id.clone(), picked_vs_currency.0.name.clone(), from, to, timestamp), |x| x))
     }
 
     pub fn update(&mut self, message: GuiMessage, _clipboard: &mut Clipboard) -> Command<GuiMessage> {
         match message {
             GuiMessage::CoinPicked(picked) => {
+                let timestamp = Local::now().timestamp() as u64;
+                self.latest_data_request_timestamp = timestamp;
                 self.picked_coin = picked;
                 self.data = Ok(None);
                 let (from, to) = self.time_period.get_from_to(Local::now().timestamp() as u64);
-                Command::perform(load_data(self.picked_coin.0.id.clone(), self.picked_vs_currency.0.name.clone(), from, to), |x| x)
+                Command::perform(load_data(self.picked_coin.0.id.clone(), self.picked_vs_currency.0.name.clone(), from, to, timestamp), |x| x)
             }
             GuiMessage::VsCurrencyPicked(picked) => {
+                let timestamp = Local::now().timestamp() as u64;
+                self.latest_data_request_timestamp = timestamp;
                 self.picked_vs_currency = picked;
                 self.data = Ok(None);
                 let (from, to) = self.time_period.get_from_to(Local::now().timestamp() as u64);
-                Command::perform(load_data(self.picked_coin.0.id.clone(), self.picked_vs_currency.0.name.clone(), from, to), |x| x)
+                Command::perform(load_data(self.picked_coin.0.id.clone(), self.picked_vs_currency.0.name.clone(), from, to, timestamp), |x| x)
             }
             GuiMessage::TimePeriodPicked(picked) => {
+                let timestamp = Local::now().timestamp() as u64;
+                self.latest_data_request_timestamp = timestamp;
                 self.time_period = picked;
                 self.data = Ok(None);
                 let (from, to) = self.time_period.get_from_to(Local::now().timestamp() as u64);
-                Command::perform(load_data(self.picked_coin.0.id.clone(), self.picked_vs_currency.0.name.clone(), from, to), |x| x)
+                Command::perform(load_data(self.picked_coin.0.id.clone(), self.picked_vs_currency.0.name.clone(), from, to, timestamp), |x| x)
             }
-            GuiMessage::DataLoaded(data) => {
-                self.data = Ok(Some(data));
+            GuiMessage::DataLoaded(data, timestamp) => {
+                if self.latest_data_request_timestamp == timestamp {
+                    self.data = Ok(Some(data));
+                }
                 Command::none()
             }
-            GuiMessage::DataLoadFailed(err) => {
-                self.data = Err(err.into());
+            GuiMessage::DataLoadFailed(err, timestamp) => {
+                if self.latest_data_request_timestamp == timestamp {
+                    self.data = Err(err.into());
+                }
                 Command::none()
             }
             GuiMessage::ChartMessage(_) => {
@@ -238,7 +251,7 @@ impl Gui {
     }
 }
 
-async fn load_data(id: String, vs_currency: String, from: u64, to: u64) -> GuiMessage {
+async fn load_data(id: String, vs_currency: String, from: u64, to: u64, timestamp: u64) -> GuiMessage {
     let client = coingecko_requests::api_client::Client::new();
     let result = client.market_chart(&id, &vs_currency, from, to)
         .await
@@ -248,10 +261,10 @@ async fn load_data(id: String, vs_currency: String, from: u64, to: u64) -> GuiMe
             .collect::<Vec<_>>());
     match result {
         Ok(data) => {
-            GuiMessage::DataLoaded(data)
+            GuiMessage::DataLoaded(data, timestamp)
         }
         Err(err) => {
-            GuiMessage::DataLoadFailed(err.to_string())
+            GuiMessage::DataLoadFailed(err.to_string(), timestamp)
         }
     }
 }
