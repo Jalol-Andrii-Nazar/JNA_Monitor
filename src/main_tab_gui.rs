@@ -196,7 +196,6 @@ impl Gui {
             date_to_year_picklist_state: Default::default(),
             date_to_month_picklist_state: Default::default(),
             date_to_day_picklist_state: Default::default(),
-            time_period: time_period.clone(),
             years: (2013..=2021).collect(),
             months: (1..=12).collect(),
             days: (1..=31).collect(),
@@ -212,7 +211,9 @@ impl Gui {
             if let Some((timestamp_from, timestamp_to)) = new_from_date.as_timestamp().zip(new_to_date.as_timestamp()) {
                 if timestamp_from < timestamp_to {
                     gui.data = Ok(None);
-                    return Command::perform(load_data(gui.picked_coin.0.id.clone(), gui.picked_vs_currency.0.name.clone(), timestamp_from, timestamp_to), |x| x);
+                    let timestamp = Local::now().timestamp() as u64;
+                    gui.latest_data_request_timestamp = timestamp;    
+                    return Command::perform(load_data(gui.picked_coin.0.id.clone(), gui.picked_vs_currency.0.name.clone(), timestamp_from, timestamp_to, timestamp), |x| x);
                 }
             }
             gui.data = Err(From::from("Invalid date(s)!"));
