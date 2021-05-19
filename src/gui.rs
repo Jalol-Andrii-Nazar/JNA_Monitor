@@ -82,7 +82,11 @@ impl Gui {
                                 Command::none()
                             }
                             None => {
-                                let (triggers_tab_state, triggers_tab_init_message) = triggers_tab_gui::Gui::new(triggers_tab_gui::Flags {});
+                                let (triggers_tab_state, triggers_tab_init_message) = triggers_tab_gui::Gui::new(triggers_tab_gui::Flags {
+                                    coins: self.coins.clone(),
+                                    currencies: self.currencies.clone(),
+                                    settings: self.settings.clone(),
+                                });
                                 self.triggers_tab_state = Some(triggers_tab_state);
                                 triggers_tab_init_message.map(Message::TriggersTabMessage)
                             }
