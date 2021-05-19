@@ -1,5 +1,5 @@
 use std::{rc::Rc, sync::{Arc, RwLock}};
-use iced::{Canvas, Clipboard, Column, Command, Length, PickList, Row, Text, pick_list, TextInput, text_input, Button, button, HorizontalAlignment};
+use iced::{Clipboard, Column, Command, Length, PickList, Row, Text, pick_list, TextInput, text_input, Button, button, HorizontalAlignment};
 
 pub struct Flags {
     pub coins: Rc<Vec<coingecko_requests::data::Coin>>,
@@ -12,8 +12,8 @@ pub enum Message {
     SaveTriggerClicked,
     CoinPicked(coingecko_requests::data::Coin),
     CurrencyPicked(coingecko_requests::data::VsCurrency),
-    PriceFromInputChanged(String),
-    PriceToInputChanged(String),
+    PriceInputChanged(String),
+    TriggersAdded,
 }
 
 #[derive(Debug, Clone)]
@@ -25,10 +25,8 @@ pub struct Gui {
     coin_picklist_state: pick_list::State<coingecko_requests::data::Coin>,
     picked_currency: coingecko_requests::data::VsCurrency,
     currency_picklist_state: pick_list::State<coingecko_requests::data::VsCurrency>,
-    price_from_input_state: text_input::State,
-    price_from_value: String,
-    price_to_input_state: text_input::State,
-    price_to_value: String,
+    price_input_state: text_input::State,
+    price_value: String,
     save_trigger_state: button::State,
 }
 
@@ -45,21 +43,16 @@ impl Gui {
             picked_coin: picked_coin.clone(),
             picked_currency: picked_currency.clone(),
             currency_picklist_state: Default::default(),
-            price_from_input_state: Default::default(),
-            price_from_value: Default::default(),
-            price_to_input_state: Default::default(),
-            price_to_value: Default::default(),
+            price_input_state: Default::default(),
+            price_value: Default::default(),
             save_trigger_state: Default::default(),
         }, Command::none())
     }
 
     pub fn update(&mut self, message: Message, _clipboard: &mut Clipboard) -> Command<Message> {
         match message {
-            Message::PriceFromInputChanged(value) => {
-                self.price_from_value = value;
-            }
-            Message::PriceToInputChanged(value) => {
-                self.price_to_value = value;
+            Message::PriceInputChanged(value) => {
+                self.price_value = value;
             }
             Message::CoinPicked(picked) => {
                 self.picked_coin = picked;
@@ -67,7 +60,11 @@ impl Gui {
             Message::CurrencyPicked(picked) => {
                 self.picked_currency = picked;
             }
-            Message::SaveTriggerClicked => {}
+            Message::SaveTriggerClicked => {
+                let value = self.price_value.parse::<u64>().unwrap();
+                return Command::perform(add_triggers(self.picked_coin.raw.id.clone(), self.picked_currency.raw.name.clone(), value), |_x| Message::TriggersAdded);
+            }
+            Message::TriggersAdded => {}
         }
         Command::none()
     }
@@ -94,25 +91,35 @@ impl Gui {
         let vs_currency_picklist = PickList::new(&mut self.currency_picklist_state, currencies, Some(self.picked_currency.clone()), Message::CurrencyPicked).width(Length::Fill);
         vs_currency_column = vs_currency_column.push(vs_currency_picklist);
 
-        let mut price__from_input_column = Column::new().spacing(5).width(Length::FillPortion(1));
-        price__from_input_column = price__from_input_column.push(Text::new("From"));
-        let text_input_price = TextInput::new(&mut self.price_from_input_state,"200",&mut self.price_from_value ,Message::PriceFromInputChanged).width(Length::Fill).padding(5);
-        price__from_input_column = price__from_input_column.push(text_input_price);
-
-        let mut price_to_input_column = Column::new().spacing(5).width(Length::FillPortion(1));
-        price_to_input_column = price_to_input_column.push(Text::new("To"));
-        let text_input_price = TextInput::new(&mut self.price_to_input_state,"1000",&mut self.price_to_value ,Message::PriceToInputChanged).width(Length::Fill).padding(5);
-        price_to_input_column = price_to_input_column.push(text_input_price);
-
+        let mut price_input_column = Column::new().spacing(5).width(Length::FillPortion(1));
+        price_input_column = price_input_column.push(Text::new("Enter a value"));
+        let text_input_price = TextInput::new(&mut self.price_input_state,"200",&mut self.price_value ,Message::PriceInputChanged).width(Length::Fill).padding(5);
+        price_input_column = price_input_column.push(text_input_price);
 
         trigger_settings_row = trigger_settings_row.push(coin_column);
         trigger_settings_row = trigger_settings_row.push(vs_currency_column);
-        trigger_settings_row = trigger_settings_row.push(price__from_input_column);
-        trigger_settings_row = trigger_settings_row.push(price_to_input_column);
-        trigger_settings_row = trigger_settings_row.push(  Button::new(&mut self.save_trigger_state, Text::new("Save").horizontal_alignment(HorizontalAlignment::Center)).on_press(Message::SaveTriggerClicked).width(Length::Fill).padding(17));
+        trigger_settings_row = trigger_settings_row.push(price_input_column);
+        trigger_settings_row = trigger_settings_row.push(Button::new(&mut self.save_trigger_state, Text::new("Save").horizontal_alignment(HorizontalAlignment::Center)).on_press(Message::SaveTriggerClicked).width(Length::Fill).padding(17));
 
         main_column = main_column.push(trigger_settings_row);
 
         main_column.into()
     }
+}
+
+pub async fn add_triggers(coin: String, currency: String, value: u64) -> Result<(), Box<dyn std::error::Error>>{
+    let api_client = coingecko_requests::api_client::Client::new();
+    let mut client = coingecko_requests::caching_client::Client::new(api_client).await?;
+
+    let coin_owned = vec![String::from(&coin)];
+    let coin_half_owned: Vec<_> = coin_owned.iter().map(String::as_str).collect();
+
+    let currency_owned = vec![String::from(&currency)];
+    let currency_half_owned: Vec<_> = currency_owned.iter().map(String::as_str).collect();
+
+    let data = client.price(&coin_half_owned, &currency_half_owned).await?;
+
+    client.add_trigger(&coin, &currency, data[&coin][&currency] as u64, value).await?;
+
+    Ok(())
 }
