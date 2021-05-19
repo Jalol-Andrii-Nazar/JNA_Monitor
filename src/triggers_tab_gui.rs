@@ -61,8 +61,12 @@ impl Gui {
             Message::PriceToInputChanged(value) => {
                 self.price_to_value = value;
             }
-            Message::CoinPicked(a) => {}
-            Message::CurrencyPicked(b) => {}
+            Message::CoinPicked(picked) => {
+                self.picked_coin = picked;
+            }
+            Message::CurrencyPicked(picked) => {
+                self.picked_currency = picked;
+            }
             Message::SaveTriggerClicked => {}
         }
         Command::none()
