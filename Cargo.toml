@@ -13,4 +13,5 @@ iced = { version = "0.3", features = ["canvas", "tokio"] }
 image = { version = "0.23.12", default-features = false, features = ["png"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 chrono = "0.4"
-directories = "3.0.1"
+directories = "3.0.1"   
+notify-rust = "4"
