@@ -61,7 +61,7 @@ impl Gui {
                 self.picked_currency = picked;
             }
             Message::SaveTriggerClicked => {
-                let value = self.price_value.parse::<u64>().unwrap();
+                let value = self.price_value.parse::<f64>().unwrap();
                 return Command::perform(add_triggers(self.picked_coin.raw.id.clone(), self.picked_currency.raw.name.clone(), value), |_x| Message::TriggersAdded);
             }
             Message::TriggersAdded => {}
@@ -107,7 +107,7 @@ impl Gui {
     }
 }
 
-pub async fn add_triggers(coin: String, currency: String, value: u64) -> Result<(), Box<dyn std::error::Error>>{
+pub async fn add_triggers(coin: String, currency: String, value: f64) -> Result<(), Box<dyn std::error::Error>>{
     let api_client = coingecko_requests::api_client::Client::new();
     let mut client = coingecko_requests::caching_client::Client::new(api_client).await?;
 
@@ -119,7 +119,7 @@ pub async fn add_triggers(coin: String, currency: String, value: u64) -> Result<
 
     let data = client.price(&coin_half_owned, &currency_half_owned).await?;
 
-    client.add_trigger(&coin, &currency, data[&coin][&currency] as u64, value).await?;
+    client.add_trigger(&coin, &currency, data[&coin][&currency], value).await?;
 
     Ok(())
 }

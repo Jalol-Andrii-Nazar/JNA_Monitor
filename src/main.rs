@@ -23,6 +23,7 @@ pub const VERSION: &'static str = "alpha-0.1";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+      
     let mut iced_settings: Settings<()> = Default::default();
     let mut iced_wsettings: window::Settings = window::Settings::default();
 
@@ -39,7 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     loading_gui::Gui::run(iced_settings)?;
     
-    /*
+  /*
     while true {
         println!("Checking!");
         check_triggers().await?;
@@ -71,12 +72,14 @@ pub async fn check_triggers() -> Result<(), Box<dyn std::error::Error>> {
         let price = client.price(&coin_half_owned, &currency_half_owned).await?;
         let price = price[&trigger.coin][&trigger.currency];
 
-        if (increase && price >= trigger.new_price as f64) || (!increase && price <= trigger.new_price as f64){
+        if (increase && price >= trigger.new_price) || (!increase && price <= trigger.new_price){
             //println!("{} => {}\nOld Price: {}\nNew Price: {}\nChanged: {}", trigger.coin.to_uppercase(), trigger.currency.to_uppercase(), trigger.old_price, price, (price - trigger.old_price as f64).abs());
         
             Notification::new()
+                .appname("JNA Monitor")
                 .summary(&format!("{} => {}", trigger.coin.to_uppercase(), trigger.currency.to_uppercase()))
-                .body(&format!("Old Price: {}\nCurrent Price: {}\nDifference: {}", trigger.old_price, price, (price - trigger.old_price as f64).abs()))
+                .body(&format!("Old Price: {}\nCurrent Price: {}\nDifference: {}", trigger.old_price as i64, price, (price - trigger.old_price).abs() as i64))
+                .icon("D:/Projects/Organisation/mywork/JNA_Monitor/icon.png")
                 .show()?;
         } 
 
