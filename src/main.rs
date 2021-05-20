@@ -51,39 +51,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
 }
 
-pub async fn check_triggers() -> Result<(), Box<dyn std::error::Error>> {
-    let api_client = coingecko_requests::api_client::Client::new();
-    let mut client = coingecko_requests::caching_client::Client::new(api_client).await?;
-    let triggers = client.get_all_triggers().await?;
+// pub async fn check_triggers() -> Result<(), Box<dyn std::error::Error>> {
+//     let api_client = coingecko_requests::api_client::Client::new();
+//     let mut client = coingecko_requests::caching_client::Client::new(api_client).await?;
+//     let triggers = client.get_all_triggers().await?;
 
-    for trigger in triggers {
-        let mut increase= true;
+//     for trigger in triggers {
+//         let mut increase= true;
 
-        if trigger.old_price > trigger.new_price {
-            increase = false;
-        }
+//         if trigger.old_price > trigger.new_price {
+//             increase = false;
+//         }
 
-        let coin_owned = vec![String::from(&trigger.coin)];
-        let coin_half_owned: Vec<_> = coin_owned.iter().map(String::as_str).collect();
+//         let coin_owned = vec![String::from(&trigger.coin)];
+//         let coin_half_owned: Vec<_> = coin_owned.iter().map(String::as_str).collect();
     
-        let currency_owned = vec![String::from(&trigger.currency)];
-        let currency_half_owned: Vec<_> = currency_owned.iter().map(String::as_str).collect();
+//         let currency_owned = vec![String::from(&trigger.currency)];
+//         let currency_half_owned: Vec<_> = currency_owned.iter().map(String::as_str).collect();
     
-        let price = client.price(&coin_half_owned, &currency_half_owned).await?;
-        let price = price[&trigger.coin][&trigger.currency];
+//         let price = client.price(&coin_half_owned, &currency_half_owned).await?;
+//         let price = price[&trigger.coin][&trigger.currency];
 
-        if (increase && price >= trigger.new_price) || (!increase && price <= trigger.new_price){
-            //println!("{} => {}\nOld Price: {}\nNew Price: {}\nChanged: {}", trigger.coin.to_uppercase(), trigger.currency.to_uppercase(), trigger.old_price, price, (price - trigger.old_price as f64).abs());
+//         if (increase && price >= trigger.new_price) || (!increase && price <= trigger.new_price){
+//             //println!("{} => {}\nOld Price: {}\nNew Price: {}\nChanged: {}", trigger.coin.to_uppercase(), trigger.currency.to_uppercase(), trigger.old_price, price, (price - trigger.old_price as f64).abs());
         
-            Notification::new()
-                .appname("JNA Monitor")
-                .summary(&format!("{} => {}", trigger.coin.to_uppercase(), trigger.currency.to_uppercase()))
-                .body(&format!("Old Price: {}\nCurrent Price: {}\nDifference: {}", trigger.old_price as i64, price, (price - trigger.old_price).abs() as i64))
-                .icon("D:/Projects/Organisation/mywork/JNA_Monitor/icon.png")
-                .show()?;
-        } 
+//             Notification::new()
+//                 .appname("JNA Monitor")
+//                 .summary(&format!("{} => {}", trigger.coin.to_uppercase(), trigger.currency.to_uppercase()))
+//                 .body(&format!("Old Price: {}\nCurrent Price: {}\nDifference: {}", trigger.old_price as i64, price, (price - trigger.old_price).abs() as i64))
+//                 .icon("D:/Projects/Organisation/mywork/JNA_Monitor/icon.png")
+//                 .show()?;
+//         } 
 
-    }
+//     }
 
-    Ok(())
-}
+//     Ok(())
+// }
