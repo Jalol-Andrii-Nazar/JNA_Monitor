@@ -205,6 +205,8 @@ async fn check_triggers(coins: Vec<coingecko_requests::data::Coin>, currencies: 
                 .body(&format!("Initial Price: {}\nTarget Price: {}\nCurrent Price: {}\nDifference: {}", trigger.initial_price as i64, trigger.target_price as i64, price, (price - trigger.initial_price).abs() as i64))
                 .icon("D:/Projects/Organisation/mywork/JNA_Monitor/icon.png")
                 .show()?;
+            
+            client.delete_trigger(trigger.rowid).await?;
         } 
     }
     Ok(())
