@@ -4,6 +4,9 @@ use directories::ProjectDirs;
 use iced::{Application, Clipboard, Column, Command, Text, executor};
 use tokio::fs::OpenOptions;
 
+use notify_rust::{Notification};
+use std::{time, thread};
+
 enum State {
     Initilizing,
     Errored,
@@ -118,6 +121,11 @@ fn unwrap_result(result: Result<Message, Box<dyn std::error::Error>>) -> Message
 }
 
 async fn load_settings() -> Result<Message, Box<dyn std::error::Error>> {
+
+    tokio::spawn(async move {
+        spawn_check_triggers().await.unwrap();
+    });
+
     let project_dirs = ProjectDirs::from("org", "jna", "jna")
         .ok_or::<Box<dyn std::error::Error>>(From::from("Failed to get project_dirs!"))?;
     
@@ -143,14 +151,61 @@ async fn load_settings() -> Result<Message, Box<dyn std::error::Error>> {
 
 async fn load_coins() -> Result<Message, Box<dyn std::error::Error>> {
     let api_client = coingecko_requests::api_client::Client::new();
-    let mut caching_client = coingecko_requests::caching_client::Client::new(api_client).await?;
+    let caching_client = coingecko_requests::caching_client::Client::new(api_client).await?;
     let coins = caching_client.coins().await?;
     Ok(Message::CoinsLoaded(coins))
 }
 
 async fn load_vs_currencies() -> Result<Message, Box<dyn std::error::Error>> {
     let api_client = coingecko_requests::api_client::Client::new();
-    let mut caching_client = coingecko_requests::caching_client::Client::new(api_client).await?;
+    let caching_client = coingecko_requests::caching_client::Client::new(api_client).await?;
     let currencies = caching_client.vs_currencies().await?;
     Ok(Message::CurrenciesLoaded(currencies))
+}
+
+async fn spawn_check_triggers() -> Result<(), Box<dyn std::error::Error>> {
+    let api_client = coingecko_requests::api_client::Client::new();
+    let caching_client = coingecko_requests::caching_client::Client::new(api_client).await?;
+    let coins = caching_client.coins().await?;
+    let currencies = caching_client.vs_currencies().await?;
+
+    loop {
+        println!("Checking");
+        check_triggers(coins.clone(), currencies.clone()).await.unwrap();
+        thread::sleep(time::Duration::from_secs(60));
+    }
+}
+
+async fn check_triggers(coins: Vec<coingecko_requests::data::Coin>, currencies: Vec<coingecko_requests::data::VsCurrency>) -> Result<(), Box<dyn std::error::Error>> {
+    let api_client = coingecko_requests::api_client::Client::new();
+    let client = coingecko_requests::caching_client::Client::new(api_client).await?;
+    let triggers = client.get_all_triggers().await?;
+    for trigger in triggers {
+        let mut increase= true;
+        let coin = coins.iter().find(|coin| coin.rowid == trigger.coin_id).cloned().unwrap();
+        let currency = currencies.iter().find(|currency| currency.rowid == trigger.currency_id).cloned().unwrap();
+        
+        if trigger.initial_price > trigger.target_price {
+            increase = false;
+        }
+        let coin_owned = vec![String::from(&coin.raw.id)];
+        let coin_half_owned: Vec<_> = coin_owned.iter().map(String::as_str).collect();
+
+        let currency_owned = vec![String::from(&currency.raw.name)];
+        let currency_half_owned: Vec<_> = currency_owned.iter().map(String::as_str).collect();
+
+        let price = client.price(&coin_half_owned, &currency_half_owned).await?;
+        let price = price[&coin.raw.id][&currency.raw.name];
+        if (increase && price >= trigger.target_price) || (!increase && price <= trigger.target_price){
+            //println!("{} => {}\nOld Price: {}\nNew Price: {}\nChanged: {}", trigger.coin.to_uppercase(), trigger.currency.to_uppercase(), trigger.old_price, price, (price - trigger.old_price as f64).abs());
+    
+            Notification::new()
+                .appname("JNA Monitor")
+                .summary(&format!("{} => {}", coin.raw.id.to_uppercase(), currency.raw.name.to_uppercase()))
+                .body(&format!("Initial Price: {}\nTarget Price: {}\nCurrent Price: {}\nDifference: {}", trigger.initial_price as i64, trigger.target_price as i64, price, (price - trigger.initial_price).abs() as i64))
+                .icon("D:/Projects/Organisation/mywork/JNA_Monitor/icon.png")
+                .show()?;
+        } 
+    }
+    Ok(())
 }
