@@ -17,7 +17,6 @@ pub enum Message {
     GreenChanged(u8),
     BlueChanged(u8),
     AlphaChanged(u8),
-    SaveButtonClicked,
 }
 
 #[derive(Default)]
@@ -28,7 +27,6 @@ pub struct Gui {
     green_slider: slider::State,
     blue_slider: slider::State,
     alpha_slider: slider::State,
-    save_button: button::State,
 }
 
 impl Gui {
@@ -40,7 +38,6 @@ impl Gui {
             green_slider: Default::default(),
             blue_slider: Default::default(),
             alpha_slider: Default::default(),
-            save_button: Default::default(),
         }, Command::none())
     }
 
@@ -48,26 +45,30 @@ impl Gui {
         match message {
             Message::ThemeChanged(theme) => {
                 self.settings.write().unwrap().theme = theme;
+                self.settings.read().unwrap().save().unwrap();
             }
             Message::ShowAllCoinsToggled(b) => {
                 self.settings.write().unwrap().show_all_coins = b;
+                self.settings.read().unwrap().save().unwrap();
             }
             Message::ShowAllCurrenciesToggled(b) => {
                 self.settings.write().unwrap().show_all_currencies = b;
+                self.settings.read().unwrap().save().unwrap();
             }
             Message::RedChanged(red) => {
                 self.settings.write().unwrap().graph_color.r = red as f32 / 255.0;
+                self.settings.read().unwrap().save().unwrap();
             }
             Message::GreenChanged(green) => {
                 self.settings.write().unwrap().graph_color.g = green as f32 / 255.0;
+                self.settings.read().unwrap().save().unwrap();
             }
             Message::BlueChanged(blue) => {
                 self.settings.write().unwrap().graph_color.b = blue as f32 / 255.0;
+                self.settings.read().unwrap().save().unwrap();
             }
             Message::AlphaChanged(alpha) => {
                 self.settings.write().unwrap().graph_color.a = alpha as f32 / 255.0;
-            }
-            Message::SaveButtonClicked => {
                 self.settings.read().unwrap().save().unwrap();
             }
         }
@@ -153,10 +154,6 @@ impl Gui {
         column = column.push(graph_color_green_row);
         column = column.push(graph_color_blue_row);
         column = column.push(graph_color_alpha_row);
-
-        column = column.push(Button::new(&mut self.save_button, Text::new("save"))
-            .on_press(Message::SaveButtonClicked)
-            .style(theme));
 
         Container::new(column)
             .width(Length::Fill)
