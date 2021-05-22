@@ -1,10 +1,8 @@
 use std::{rc::Rc, sync::{Arc, RwLock}};
 
-use iced::{Align, Button, Clipboard, Color, Column, Command, Element, Length, Row, Text, button};
+use iced::{Align, Button, Clipboard, Color, Column, Command, Container, Element, Length, Row, Text, button};
 
 use crate::*;
-
-const ENABLE_EXPLAIN: bool = false;
 
 pub struct Flags {
     pub coins: Rc<Vec<coingecko_requests::data::Coin>>,
@@ -152,6 +150,10 @@ impl Gui {
     }
 
     pub fn view(&mut self) -> iced::Element<'_, Message> {
+        let lock = self.settings.write().unwrap();
+        let theme = lock.theme.clone();
+        drop(lock);
+
         let mut global_menu = Column::new()
             .spacing(5)
             .align_items(Align::Start)
@@ -161,19 +163,23 @@ impl Gui {
         global_menu = global_menu.push(
             Button::new(&mut self.main_button_state, Text::new("Main".to_string()))
                 .on_press(Message::TabSelected(Tab::Main))
-                .width(Length::Units(100)));
+                .width(Length::Units(100))
+                .style(theme));
         global_menu = global_menu.push(
             Button::new(&mut self.triggers_button_state, Text::new("Triggers".to_string()))
                 .on_press(Message::TabSelected(Tab::Triggers))
-                .width(Length::Units(100)));
+                .width(Length::Units(100))
+                .style(theme));
         global_menu = global_menu.push(
             Button::new(&mut self.settings_button_state, Text::new("Settings".to_string()))
                 .on_press(Message::TabSelected(Tab::Settings))
-                .width(Length::Units(100)));
+                .width(Length::Units(100))
+                .style(theme));
         global_menu = global_menu.push(
             Button::new(&mut self.about_button_state, Text::new("About".to_string()))
                 .on_press(Message::TabSelected(Tab::About))
-                .width(Length::Units(100)));
+                .width(Length::Units(100))
+                .style(theme));
 
         let mut element = Row::new()
             .padding(2)
@@ -214,10 +220,12 @@ impl Gui {
             }
         }
 
-        let mut menu: Element<Message> = element.into();
-        if ENABLE_EXPLAIN {
-            menu = menu.explain(Color::BLACK);
-        }
-        menu
+        Container::new(element)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .center_x()
+            .center_y()
+            .style(theme)
+            .into()
     }
 }

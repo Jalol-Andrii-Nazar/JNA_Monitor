@@ -94,6 +94,8 @@ impl Gui {
 
     pub fn view(&mut self) -> iced::Element<'_, Message> {
         let lock = self.settings.read().unwrap();
+        let theme = lock.theme;
+
         let show_all_coins = lock.show_all_coins;
         let show_all_currencies = lock.show_all_currencies;
         let coins = if show_all_coins { self.coins.as_ref().clone() } else { self.coins.iter().filter(|coin| coin.favourite).cloned().collect() };
@@ -116,27 +118,27 @@ impl Gui {
             .spacing(5)
             .width(Length::FillPortion(1)); 
         coin_column = coin_column.push(Text::new("Coin"));
-        let coin_picklist = PickList::new(&mut self.coin_picklist_state, coins, Some(self.picked_coin.clone()), Message::CoinPicked).width(Length::Fill);
+        let coin_picklist = PickList::new(&mut self.coin_picklist_state, coins, Some(self.picked_coin.clone()), Message::CoinPicked).width(Length::Fill).style(theme);
         coin_column = coin_column.push(coin_picklist);
 
         let mut vs_currency_column = Column::new()
             .spacing(5)
             .width(Length::FillPortion(1));
         vs_currency_column = vs_currency_column.push(Text::new("Currency"));
-        let vs_currency_picklist = PickList::new(&mut self.currency_picklist_state, currencies, Some(self.picked_currency.clone()), Message::CurrencyPicked).width(Length::Fill);
+        let vs_currency_picklist = PickList::new(&mut self.currency_picklist_state, currencies, Some(self.picked_currency.clone()), Message::CurrencyPicked).width(Length::Fill).style(theme);
         vs_currency_column = vs_currency_column.push(vs_currency_picklist);
 
         let mut price_input_column = Column::new()
             .spacing(5)
             .width(Length::FillPortion(1));
         price_input_column = price_input_column.push(Text::new("Enter a value"));
-        let text_input_price = TextInput::new(&mut self.price_input_state,"200",&mut self.price_value ,Message::PriceInputChanged).width(Length::Fill).padding(5);
+        let text_input_price = TextInput::new(&mut self.price_input_state,"200",&mut self.price_value ,Message::PriceInputChanged).width(Length::Fill).padding(5).style(theme);
         price_input_column = price_input_column.push(text_input_price);
 
         trigger_settings_row = trigger_settings_row.push(coin_column);
         trigger_settings_row = trigger_settings_row.push(vs_currency_column);
         trigger_settings_row = trigger_settings_row.push(price_input_column);
-        trigger_settings_row = trigger_settings_row.push(Button::new(&mut self.save_trigger_state, Text::new("Save").horizontal_alignment(HorizontalAlignment::Center)).on_press(Message::SaveTriggerClicked).width(Length::Fill).padding(17));
+        trigger_settings_row = trigger_settings_row.push(Button::new(&mut self.save_trigger_state, Text::new("Save").horizontal_alignment(HorizontalAlignment::Center)).on_press(Message::SaveTriggerClicked).width(Length::Fill).padding(17).style(theme));
 
         main_column = main_column.push(trigger_settings_row);
 
@@ -150,7 +152,7 @@ impl Gui {
             let initial_price = trigger.initial_price;
             let target_price = trigger.target_price;
             let mut trigger_row = Row::new().padding(5).spacing(5).width(Length::Fill);
-            trigger_row = trigger_row.push(Button::new(delete_button_states.pop().unwrap(), Text::new("delete")).on_press(Message::DeleteTriggerClicked(trigger.rowid)));
+            trigger_row = trigger_row.push(Button::new(delete_button_states.pop().unwrap(), Text::new("delete")).on_press(Message::DeleteTriggerClicked(trigger.rowid)).style(theme));
             trigger_row = trigger_row.push(Text::new(format!("Trigger #{}: coin: {}, currency: {} from {} to {}", trigger.rowid, coin.raw.id, currency.raw.name, initial_price, target_price)));
             scrollable = scrollable.push(trigger_row);
         }

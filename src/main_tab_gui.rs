@@ -285,6 +285,7 @@ impl Gui {
 
     pub fn view(&mut self) -> iced::Element<'_, Message> {
         let lock = self.settings.read().unwrap();
+        let theme = lock.theme;
         let show_all_coins = lock.show_all_coins;
         let show_all_currencies = lock.show_all_currencies;
         let coins = if show_all_coins { self.coins.as_ref().clone() } else { self.coins.iter().filter(|coin| coin.favourite).cloned().collect() };
@@ -296,17 +297,17 @@ impl Gui {
 
         let mut coin_column = Column::new().spacing(5).width(Length::FillPortion(1));
         coin_column = coin_column.push(Text::new("Coin"));
-        let coin_picklist = PickList::new(&mut self.coin_picklist_state, coins, Some(self.picked_coin.clone()), Message::CoinPicked).width(Length::Fill);
+        let coin_picklist = PickList::new(&mut self.coin_picklist_state, coins, Some(self.picked_coin.clone()), Message::CoinPicked).width(Length::Fill).style(theme);
         coin_column = coin_column.push(coin_picklist);
 
         let mut vs_currency_column = Column::new().spacing(5).width(Length::FillPortion(1));
         vs_currency_column = vs_currency_column.push(Text::new("Currency"));
-        let vs_currency_picklist = PickList::new(&mut self.currency_picklist_state, currencies, Some(self.picked_currency.clone()), Message::CurrencyPicked).width(Length::Fill);
+        let vs_currency_picklist = PickList::new(&mut self.currency_picklist_state, currencies, Some(self.picked_currency.clone()), Message::CurrencyPicked).width(Length::Fill).style(theme);
         vs_currency_column = vs_currency_column.push(vs_currency_picklist);
 
         let mut time_period_column = Column::new().spacing(5).width(Length::FillPortion(1));
         time_period_column = time_period_column.push(Text::new("Time period"));
-        let time_period_picklist = PickList::new(&mut self.time_period_packlist_state, &self.time_periods, Some(self.time_period.clone()), Message::TimePeriodPicked).width(Length::Fill);
+        let time_period_picklist = PickList::new(&mut self.time_period_packlist_state, &self.time_periods, Some(self.time_period.clone()), Message::TimePeriodPicked).width(Length::Fill).style(theme);
         time_period_column = time_period_column.push(time_period_picklist);
         
         chart_settings_row = chart_settings_row.push(coin_column);
@@ -320,32 +321,32 @@ impl Gui {
 
             let mut from_year_column = Column::new().spacing(5).width(Length::FillPortion(1));
             from_year_column = from_year_column.push(Text::new("Year"));
-            let from_year_picklist = PickList::new(&mut self.date_from_year_picklist_state, &self.years, Some(self.date_from.year), Message::DateFromYearUpdated).width(Length::Fill);
+            let from_year_picklist = PickList::new(&mut self.date_from_year_picklist_state, &self.years, Some(self.date_from.year), Message::DateFromYearUpdated).width(Length::Fill).style(theme);
             from_year_column = from_year_column.push(from_year_picklist);
 
             let mut from_month_column = Column::new().spacing(5).width(Length::FillPortion(1));
             from_month_column = from_month_column.push(Text::new("Month"));
-            let from_month_picklist = PickList::new(&mut self.date_from_month_picklist_state, &self.months, Some(self.date_from.month), Message::DateFromMonthUpdated).width(Length::Fill);
+            let from_month_picklist = PickList::new(&mut self.date_from_month_picklist_state, &self.months, Some(self.date_from.month), Message::DateFromMonthUpdated).width(Length::Fill).style(theme);
             from_month_column = from_month_column.push(from_month_picklist);
             
             let mut from_day_column = Column::new().spacing(5).width(Length::FillPortion(1));
             from_day_column = from_day_column.push(Text::new("Day"));
-            let from_day_picklist = PickList::new(&mut self.date_from_day_picklist_state, &self.days, Some(self.date_from.day), Message::DateFromDayUpdated).width(Length::Fill);
+            let from_day_picklist = PickList::new(&mut self.date_from_day_picklist_state, &self.days, Some(self.date_from.day), Message::DateFromDayUpdated).width(Length::Fill).style(theme);
             from_day_column = from_day_column.push(from_day_picklist);
 
             let mut to_year_column = Column::new().spacing(5).width(Length::FillPortion(1));
             to_year_column = to_year_column.push(Text::new("Year"));
-            let to_year_picklist = PickList::new(&mut self.date_to_year_picklist_state, &self.years, Some(self.date_to.year), Message::DateToYearUpdated).width(Length::Fill);
+            let to_year_picklist = PickList::new(&mut self.date_to_year_picklist_state, &self.years, Some(self.date_to.year), Message::DateToYearUpdated).width(Length::Fill).style(theme);
             to_year_column = to_year_column.push(to_year_picklist);
 
             let mut to_month_column = Column::new().spacing(5).width(Length::FillPortion(1));
             to_month_column = to_month_column.push(Text::new("Month"));
-            let to_month_picklist = PickList::new(&mut self.date_to_month_picklist_state, &self.months, Some(self.date_to.month), Message::DateToMonthUpdated).width(Length::Fill);
+            let to_month_picklist = PickList::new(&mut self.date_to_month_picklist_state, &self.months, Some(self.date_to.month), Message::DateToMonthUpdated).width(Length::Fill).style(theme);
             to_month_column = to_month_column.push(to_month_picklist);
             
             let mut to_day_column = Column::new().spacing(5).width(Length::FillPortion(1));
             to_day_column = to_day_column.push(Text::new("Day"));
-            let to_day_picklist = PickList::new(&mut self.date_to_day_picklist_state, &self.days, Some(self.date_to.day), Message::DateToDayUpdated).width(Length::Fill);
+            let to_day_picklist = PickList::new(&mut self.date_to_day_picklist_state, &self.days, Some(self.date_to.day), Message::DateToDayUpdated).width(Length::Fill).style(theme);
             to_day_column = to_day_column.push(to_day_picklist);
     
             dates_row = dates_row.push(Text::new("From:").width(Length::Shrink));

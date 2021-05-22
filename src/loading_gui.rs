@@ -134,8 +134,9 @@ async fn load_settings() -> Result<Message, Box<dyn std::error::Error>> {
         tokio::fs::create_dir_all(&config_dir).await?;
     }
     let mut config_file = config_dir;
-    config_file.set_file_name("config");
+    config_file.set_file_name("jna_config");
     config_file.set_extension("bin");
+    println!("Config dir: {:?}", config_file);
     if config_file.exists() {
         let mut file = OpenOptions::new().read(true).open(&config_file).await?;
         let settings = crate::settings::Settings::read(&mut file, config_file).await?;

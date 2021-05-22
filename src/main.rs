@@ -12,6 +12,7 @@ mod main_tab_gui;
 mod triggers_tab_gui;
 mod settings_tab_gui;
 mod about_tab_gui;
+mod styling;
 
 const ICON: &[u8] = include_bytes!("../icon.png");
 
