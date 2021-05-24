@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Display, rc::Rc, sync::{Arc, RwLock}};
 
 use chrono::{Local, NaiveDate, NaiveDateTime};
-use hotplot::chart::line::{self, data::{PlotSettings, Settings}};
+use hotplot::chart::line::{self, data::{PlotSettings, PlotThemeSettings, Settings, ThemeSettings}};
 use iced::{Canvas, Clipboard, Column, Command, Container, Element, Length, PickList, Row, Text, pick_list};
 use line::data::DistanceValue;
 
@@ -367,7 +367,8 @@ impl Gui {
                     main_column = main_column.push(Text::new("There is no data for this period of time!"));
                 } else {
                     let settings = Settings {
-                        title: format!("{} to {} graph", self.picked_coin.raw.id, self.picked_currency.raw.name),
+                        theme: theme.into(),
+                        title: Some(format!("{} to {} graph", self.picked_coin.raw.id, self.picked_currency.raw.name)),
                         min_x_label_distance: DistanceValue::Fixed(200.0),
                         min_y_label_distance: DistanceValue::Fixed(100.0),
                         ..Default::default()
@@ -377,14 +378,17 @@ impl Gui {
                     let min_y_value = data.iter().map(|(_, p)| *p).min_by(|f1, f2| f1.total_cmp(f2)).unwrap();
                     let max_y_value = data.iter().map(|(_, p)| *p).max_by(|f1, f2| f1.total_cmp(f2)).unwrap();
                     let plot_settings = PlotSettings {
-                        color: self.settings.read().unwrap().graph_color,
+                        theme: PlotThemeSettings {
+                            line_color: self.settings.read().unwrap().graph_color,
+                            point_color: self.settings.read().unwrap().graph_color,
+                        },
                         point_size1: 4.0,
                         point_size2: 5.5,
                         point_size3: 7.0,
                         ..Default::default()
                     };
-                    let mut plot_data = HashMap::new();
-                    plot_data.insert(plot_settings, data.clone());
+                    let mut plot_data = Vec::new();
+                    plot_data.push((plot_settings, data.clone()));
                     let chart = line::Chart::new(
                         settings,
                         min_x_value,

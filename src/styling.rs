@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
-use iced::{button, checkbox, container, pick_list, progress_bar, radio, rule, scrollable, slider, text_input};
+use hotplot::chart::line::data::ThemeSettings;
+use iced::{button, checkbox, container, pick_list, progress_bar, radio, rule, scrollable, slider, text_input, Color};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Theme {
@@ -35,6 +36,31 @@ impl Theme {
 impl Default for Theme {
     fn default() -> Theme {
         Theme::Default
+    }
+}
+
+impl From<Theme> for ThemeSettings {
+    fn from(theme: Theme) -> Self {
+        match theme {
+            Theme::Default | Theme::Light => {
+                ThemeSettings {
+                    background_color: Color::from_rgb8(211, 211, 211),
+                    padded_background_color: Color::WHITE,
+                    margined_background_color: Some(Color::from_rgb8(241, 241, 241)),
+                    title_color: Color::BLACK,
+                    title_size: 32.0,
+                }
+            }
+            Theme::Dark => {
+                ThemeSettings {
+                    background_color: Color::from_rgb8(0x36, 0x39, 0x3F),
+                    padded_background_color: Color::from_rgb8(0x36, 0x39, 0x3F),
+                    margined_background_color: Some(dark::SURFACE),
+                    title_color: Color::WHITE,
+                    title_size: 32.0,
+                }
+            }
+        }
     }
 }
 
@@ -221,25 +247,25 @@ mod light {
 mod dark {
     use iced::{Background, Color, button, checkbox, container, pick_list, progress_bar, radio, rule, scrollable, slider, text_input};
 
-    const SURFACE: Color = Color::from_rgb(
+    pub const SURFACE: Color = Color::from_rgb(
         0x40 as f32 / 255.0,
         0x44 as f32 / 255.0,
         0x4B as f32 / 255.0,
     );
 
-    const ACCENT: Color = Color::from_rgb(
+    pub const ACCENT: Color = Color::from_rgb(
         0x6F as f32 / 255.0,
         0xFF as f32 / 255.0,
         0xE9 as f32 / 255.0,
     );
 
-    const ACTIVE: Color = Color::from_rgb(
+    pub const ACTIVE: Color = Color::from_rgb(
         0x72 as f32 / 255.0,
         0x89 as f32 / 255.0,
         0xDA as f32 / 255.0,
     );
 
-    const HOVERED: Color = Color::from_rgb(
+    pub const HOVERED: Color = Color::from_rgb(
         0x67 as f32 / 255.0,
         0x7B as f32 / 255.0,
         0xC4 as f32 / 255.0,
