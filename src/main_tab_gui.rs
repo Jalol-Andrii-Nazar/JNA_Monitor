@@ -369,8 +369,7 @@ impl Gui {
                     let settings = Settings {
                         theme: theme.into(),
                         title: Some(format!("{} to {} graph", self.picked_coin.raw.id, self.picked_currency.raw.name)),
-                        min_x_label_distance: DistanceValue::Fixed(200.0),
-                        min_y_label_distance: DistanceValue::Fixed(100.0),
+                        min_x_label_distance: DistanceValue::Fixed(160.0),
                         ..Default::default()
                     };
                     let min_x_value = data.iter().map(|(d, _)| *d).min().unwrap();

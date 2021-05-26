@@ -48,7 +48,7 @@ impl From<Theme> for ThemeSettings {
                     padded_background_color: Color::WHITE,
                     margined_background_color: Some(Color::from_rgb8(241, 241, 241)),
                     title_color: Color::BLACK,
-                    title_size: 32.0,
+                    ..Default::default()
                 }
             }
             Theme::Dark => {
@@ -57,7 +57,10 @@ impl From<Theme> for ThemeSettings {
                     padded_background_color: Color::from_rgb8(0x36, 0x39, 0x3F),
                     margined_background_color: Some(dark::SURFACE),
                     title_color: Color::WHITE,
-                    title_size: 32.0,
+                    data_description_color: Color::WHITE,
+                    x_label_text_color: Color::WHITE,
+                    y_label_text_color: Color::WHITE,
+                    ..Default::default()
                 }
             }
         }
