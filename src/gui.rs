@@ -1,13 +1,13 @@
-use std::{rc::Rc, sync::{Arc, RwLock}};
+use std::{path::PathBuf, rc::Rc, sync::{Arc, RwLock}};
 
 use iced::{Align, Button, Clipboard, Color, Column, Command, Container, Element, Length, Row, Text, button};
 
 use crate::*;
 
 pub struct Flags {
+    pub settings: Arc<RwLock<crate::settings::Settings>>,
     pub coins: Rc<Vec<coingecko_requests::data::Coin>>,
     pub currencies: Rc<Vec<coingecko_requests::data::VsCurrency>>,
-    pub settings: Arc<RwLock<crate::settings::Settings>>
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -19,9 +19,9 @@ pub enum Tab {
 }
 
 pub struct Gui {
+    settings: Arc<RwLock<crate::settings::Settings>>,
     coins: Rc<Vec<coingecko_requests::data::Coin>>,
     currencies: Rc<Vec<coingecko_requests::data::VsCurrency>>,
-    settings: Arc<RwLock<crate::settings::Settings>>,
     active_tab: Tab,
     main_button_state: button::State,
     triggers_button_state: button::State,
@@ -50,9 +50,9 @@ impl Gui {
             settings: flags.settings.clone(),
         });
         (Self {
+            settings: flags.settings,
             coins: flags.coins,
             currencies: flags.currencies,
-            settings: flags.settings,
             active_tab: Tab::Main,
             main_button_state: Default::default(),
             triggers_button_state: Default::default(),
@@ -110,7 +110,9 @@ impl Gui {
                                 Command::none()
                             }
                             None => {
-                                let (about_tab_state, about_tab_init_message) = about_tab_gui::Gui::new(about_tab_gui::Flags {});
+                                let (about_tab_state, about_tab_init_message) = about_tab_gui::Gui::new(about_tab_gui::Flags {
+                                    settings: self.settings.clone(),
+                                });
                                 self.about_tab_state = Some(about_tab_state);
                                 about_tab_init_message.map(Message::AboutTabMessage)
                             }

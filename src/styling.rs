@@ -91,7 +91,7 @@ impl From<Theme> for Box<dyn text_input::StyleSheet> {
     fn from(theme: Theme) -> Self {
         match theme {
             Theme::Default => Default::default(),
-            Theme::Light => Default::default(),
+            Theme::Light => light::TextInput.into(),
             Theme::Dark => dark::TextInput.into(),
         }
     }
@@ -121,7 +121,7 @@ impl From<Theme> for Box<dyn slider::StyleSheet> {
     fn from(theme: Theme) -> Self {
         match theme {
             Theme::Default => Default::default(),
-            Theme::Light => Default::default(),
+            Theme::Light => light::Slider.into(),
             Theme::Dark => dark::Slider.into(),
         }
     }
@@ -168,7 +168,48 @@ impl From<Theme> for Box<dyn pick_list::StyleSheet> {
 }
 
 mod light {
-    use iced::{Color, Vector, button, checkbox, pick_list};
+    use iced::{Vector, Background, Color, button, checkbox, container, pick_list, progress_bar, radio, rule, scrollable, slider, text_input};
+
+    pub struct TextInput;
+
+    impl text_input::StyleSheet for TextInput {
+        fn active(&self) -> text_input::Style {
+            text_input::Style {
+                background: Color::from_rgb(0.11, 0.42, 0.87).into(),
+                border_radius: 2.0,
+                border_width: 0.0,
+                border_color: Color::TRANSPARENT,
+            }
+        }
+
+        fn focused(&self) -> text_input::Style {
+            text_input::Style {
+                border_width: 1.0,
+                border_color: Color::from_rgb(0.11, 0.42, 0.87),
+                ..self.active()
+            }
+        }
+
+        fn hovered(&self) -> text_input::Style {
+            text_input::Style {
+                border_width: 1.0,
+                border_color: Color { a: 0.3, ..Color::from_rgb(0.11, 0.42, 0.87) },
+                ..self.focused()
+            }
+        }
+
+        fn placeholder_color(&self) -> Color {
+            Color::from_rgb8(0xA0, 0xA0, 0xA0)
+        }
+
+        fn value_color(&self) -> Color {
+            Color::WHITE
+        }
+
+        fn selection_color(&self) -> Color {
+            Color::from_rgba8(0xA0, 0xA0, 0xA0, 0.3)
+        }
+    }
 
     pub struct Button;
 
@@ -218,6 +259,46 @@ mod light {
                 border_radius: 12.0,
                 text_color: Color::from_rgb8(0xEE, 0xEE, 0xEE),
                 ..Default::default()
+            }
+        }
+    }
+
+    pub struct Slider;
+
+    impl slider::StyleSheet for Slider {
+        fn active(&self) -> slider::Style {
+            slider::Style {
+                rail_colors: (Color::from_rgb(0.11, 0.42, 0.87), Color { a: 0.1, ..Color::from_rgb(0.11, 0.42, 0.87) }),
+                handle: slider::Handle {
+                    shape: slider::HandleShape::Circle { radius: 9.0 },
+                    color: Color::from_rgb(0.11, 0.42, 0.87),
+                    border_width: 0.0,
+                    border_color: Color::TRANSPARENT,
+                },
+            }
+        }
+
+        fn hovered(&self) -> slider::Style {
+            let active = self.active();
+
+            slider::Style {
+                handle: slider::Handle {
+                    color: Color::from_rgb(0.11, 0.42, 0.87),
+                    ..active.handle
+                },
+                ..active
+            }
+        }
+
+        fn dragging(&self) -> slider::Style {
+            let active = self.active();
+
+            slider::Style {
+                handle: slider::Handle {
+                    color: Color::from_rgb(0.11, 0.42, 0.87),
+                    ..active.handle
+                },
+                ..active
             }
         }
     }

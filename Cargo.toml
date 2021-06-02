@@ -9,9 +9,10 @@ edition = "2018"
 [dependencies]
 coingecko_requests = { git = "https://github.com/Jalol-Andrii-Nazar/coingecko_requests.git" }
 hotplot = { git = "https://github.com/Jalol-Andrii-Nazar/hotplot.git" }
-iced = { version = "0.3", features = ["canvas", "tokio"] }
+iced = { version = "0.3", features = ["canvas", "tokio", "image"] }
 image = { version = "0.23.12", default-features = false, features = ["png"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 chrono = "0.4"
 directories = "3.0.1"   
 notify-rust = "4"
+open = "1"

@@ -1,4 +1,4 @@
-use std::{rc::Rc, sync::{Arc, RwLock}};
+use std::{path::PathBuf, rc::Rc, sync::{Arc, RwLock}};
 
 use directories::ProjectDirs;
 use iced::{Application, Clipboard, Column, Command, Text, executor};
@@ -15,9 +15,11 @@ enum State {
 
 #[derive(Debug)]
 pub enum Message {
+    ProjectDirsLoaded(ProjectDirs),
     SettingsLoaded(crate::settings::Settings),
     CoinsLoaded(Vec<coingecko_requests::data::Coin>),
     CurrenciesLoaded(Vec<coingecko_requests::data::VsCurrency>),
+    CheckTriggersSpawned,
     Error(String),
     GuiMessage(crate::gui::Message)
 }
@@ -25,6 +27,7 @@ pub enum Message {
 pub struct Gui {
     messages: Vec<String>,
     state: State,
+    project_dirs: Option<ProjectDirs>,
     settings: Option<crate::settings::Settings>,
     coins: Option<Vec<coingecko_requests::data::Coin>>,
     currencies: Option<Vec<coingecko_requests::data::VsCurrency>>,
@@ -38,14 +41,18 @@ impl Application for Gui {
     type Flags = ();
 
     fn new(_flags: Self::Flags) -> (Self, Command<Self::Message>) {
-        let messages = vec![format!("Loading '{}' v. {}. Please wait...", crate::NAME, crate::VERSION), format!("Loading settings...")];
+        let messages = vec![
+            format!("Loading '{}' v. {}. Please wait...", crate::NAME, crate::VERSION),
+            format!("Loading project dirs...")
+        ];
         (Self {
             messages,
             state: State::Initilizing,
+            project_dirs: None,
             settings: None,
             coins: None,
             currencies: None,
-        }, Command::perform(load_settings(), unwrap_result))
+        }, Command::perform(load_project_dirs(), unwrap_result))
     }
 
     fn title(&self) -> String {
@@ -58,25 +65,36 @@ impl Application for Gui {
 
     fn update(&mut self, message: Self::Message, clipboard: &mut Clipboard) -> Command<Self::Message> {
         match message {
+            Message::ProjectDirsLoaded(project_dirs) => {
+                self.project_dirs = Some(project_dirs);
+                self.messages.push(format!("Project dirs have been loaded successfully!"));
+                self.messages.push(format!("Loading settings..."));
+                Command::perform(load_settings(self.project_dirs.clone().unwrap()), unwrap_result)
+            }
             Message::SettingsLoaded(settings) => {
                 self.settings = Some(settings);
-                self.messages.push(format!("Settings loaded successfully!"));
+                self.messages.push(format!("Settings have been loaded successfully!"));
                 self.messages.push(format!("Loading coins..."));
                 Command::perform(load_coins(), unwrap_result)
             }
             Message::CoinsLoaded(coins) => {
                 self.coins = Some(coins);
-                self.messages.push(format!("Coins loaded successfully..."));
+                self.messages.push(format!("Coins have been loaded successfully!"));
                 self.messages.push(format!("Loading currencies..."));
                 Command::perform(load_vs_currencies(), unwrap_result)
             }
             Message::CurrenciesLoaded(vs_currencies) => {
                 self.currencies = Some(vs_currencies);
-                self.messages.push(format!("Currencies loaded successfully..."));
-                self.messages.push(format!("Starting the GUI..."));
+                self.messages.push(format!("Currencies have been loaded successfully!"));
+                self.messages.push(format!("Spawning triggers check..."));
+                Command::perform(spawn_check_triggers(), unwrap_result)
+            }
+            Message::CheckTriggersSpawned => {
+                self.messages.push(format!("Triggers have been spawned successfully!"));
+                self.messages.push(format!("Starting the application..."));
+                let settings = Arc::new(RwLock::new(self.settings.take().unwrap()));
                 let coins = Rc::new(self.coins.take().unwrap());
                 let currencies = Rc::new(self.currencies.take().unwrap());
-                let settings = Arc::new(RwLock::new(self.settings.take().unwrap()));
                 let (gui, gui_message) = crate::gui::Gui::new(crate::gui::Flags {
                     coins,
                     currencies,
@@ -84,6 +102,7 @@ impl Application for Gui {
                 });
                 self.state = State::Initialized(gui);
                 gui_message.map(Self::Message::GuiMessage)
+
             }
             Message::Error(error) => {
                 self.state = State::Errored;
@@ -120,15 +139,13 @@ fn unwrap_result(result: Result<Message, Box<dyn std::error::Error>>) -> Message
     }
 }
 
-async fn load_settings() -> Result<Message, Box<dyn std::error::Error>> {
-
-    tokio::spawn(async move {
-        spawn_check_triggers().await.unwrap();
-    });
-
+async fn load_project_dirs() -> Result<Message, Box<dyn std::error::Error>> {
     let project_dirs = ProjectDirs::from("org", "jna", "jna")
         .ok_or::<Box<dyn std::error::Error>>(From::from("Failed to get project_dirs!"))?;
-    
+    Ok(Message::ProjectDirsLoaded(project_dirs))
+}
+
+async fn load_settings(project_dirs: ProjectDirs) -> Result<Message, Box<dyn std::error::Error>> {
     let config_dir = project_dirs.config_dir().to_owned();
     if !config_dir.exists() {
         tokio::fs::create_dir_all(&config_dir).await?;
@@ -136,7 +153,7 @@ async fn load_settings() -> Result<Message, Box<dyn std::error::Error>> {
     let mut config_file = config_dir;
     config_file.set_file_name("jna_config");
     config_file.set_extension("bin");
-    println!("Config dir: {:?}", config_file);
+    println!("Config file: {:?}", config_file);
     if config_file.exists() {
         let mut file = OpenOptions::new().read(true).open(&config_file).await?;
         let settings = crate::settings::Settings::read(&mut file, config_file).await?;
@@ -164,17 +181,19 @@ async fn load_vs_currencies() -> Result<Message, Box<dyn std::error::Error>> {
     Ok(Message::CurrenciesLoaded(currencies))
 }
 
-async fn spawn_check_triggers() -> Result<(), Box<dyn std::error::Error>> {
+async fn spawn_check_triggers() -> Result<Message, Box<dyn std::error::Error>> {
     let api_client = coingecko_requests::api_client::Client::new();
     let caching_client = coingecko_requests::caching_client::Client::new(api_client).await?;
     let coins = caching_client.coins().await?;
     let currencies = caching_client.vs_currencies().await?;
-
-    loop {
-        println!("Checking");
-        check_triggers(coins.clone(), currencies.clone()).await.unwrap();
-        thread::sleep(time::Duration::from_secs(60));
-    }
+    tokio::spawn(async move {
+        loop {
+            println!("Checking triggers");
+            check_triggers(coins.clone(), currencies.clone()).await.unwrap();
+            thread::sleep(time::Duration::from_secs(60));
+        }
+    });
+    Ok(Message::CheckTriggersSpawned)
 }
 
 async fn check_triggers(coins: Vec<coingecko_requests::data::Coin>, currencies: Vec<coingecko_requests::data::VsCurrency>) -> Result<(), Box<dyn std::error::Error>> {
